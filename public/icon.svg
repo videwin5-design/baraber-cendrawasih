@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#09090B" />
+  <rect x="36" y="36" width="440" height="440" rx="76" fill="none" stroke="#C5922E" stroke-width="8" stroke-opacity="0.45" />
+  <path d="M324 148c-28-24-68-32-104-18-48 18-80 68-78 126 2 60 38 110 92 126 38 11 78 2 104-22-18 8-38 10-58 4-44-12-74-52-76-102-2-48 24-90 64-104 22-8 44-8 66-2-20-16-42-22-64-18 18-16 38-20 54-10z" fill="#FFFFFF" />
+  <path d="M132 198c38-30 88-38 140-26-26-26-66-36-108-22-30 10-54 32-72 60 12-4 26-8 40-12z" fill="#C5922E" />
+  <path d="M114 248c32-18 68-22 104-14-26-14-56-16-86-4-16 6-30 16-42 28 8-4 16-8 24-10z" fill="#E5B95C" />
+  <text x="256" y="438" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="34" letter-spacing="6" fill="#FFFFFF">CENDRAWASIH</text>
+</svg>

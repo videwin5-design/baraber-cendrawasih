@@ -1,0 +1,6 @@
+{
+  "name": "Barbershop Cendrawasih",
+  "description": "Sistem manajemen terpadu Barbershop Cendrawasih berbasis PWA: manajemen cabang, karyawan, gaji, presensi GPS Python, kasir POS realtime, laporan keuangan harian, dan pemesanan online pelanggan.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
