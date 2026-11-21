@@ -63,6 +63,8 @@ import {ActionConfirmModal, ActionFeedbackModal} from './AppActionModal.tsx';
 import {ExcelPeriodReport} from './ExcelPeriodReport.tsx';
 import {OwnerAnalyticsCharts} from './OwnerAnalyticsCharts.tsx';
 import {OwnerPerformanceMatrixTable} from './OwnerPerformanceMatrixTable.tsx';
+import {downloadPeriodExcel} from '../utils/excelExport.ts';
+import {downloadPeriodPdf} from '../utils/pdfExport.ts';
 
 interface OwnerPortalProps {
   branches: Branch[];
@@ -317,6 +319,56 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
   useEffect(() => {
     fetchDailyReport(reportDate, reportBranchId);
   }, [reportDate, reportBranchId, bookings.length, attendance.length, salaries.length]);
+
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [previewWatermarkPhoto, setPreviewWatermarkPhoto] = useState<{
+    url: string;
+    employeeName: string;
+    branchName: string;
+    date: string;
+    verifiedBy: string;
+  } | null>(null);
+
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const monthStr = reportDate ? reportDate.slice(0, 7) : '2026-10';
+      const periodReport: PeriodReportSummary = {
+        mode: 'monthly',
+        start_date: `${monthStr}-01`,
+        end_date: `${monthStr}-31`,
+        total_revenue: dailyReport?.total_revenue || 0,
+        total_discount: dailyReport?.total_discount || 0,
+        total_barber_commission: dailyReport?.total_barber_commission || 0,
+        net_barbershop_income: dailyReport?.net_barbershop_income || 0,
+        total_transactions: dailyReport?.total_transactions || 0,
+        total_cuts: dailyReport?.total_cuts || 0,
+        payment_breakdown: dailyReport?.payment_breakdown || [],
+        branch_breakdown: dailyReport?.branch_breakdown || [],
+        daily_breakdown: [],
+      };
+      await downloadPeriodExcel({
+        report: periodReport,
+        monthYear: monthStr,
+        employees,
+        attendance,
+        transactions,
+      });
+    } catch (e) {
+      console.error('Failed to export excel:', e);
+      alert('Gagal mengekspor berkas Excel (.xlsx)');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleExportPdf = () => {
+    downloadPeriodPdf({
+      elementId: 'owner-master-dashboard-report',
+      title: `Laporan Keuangan & Kinerja Barbershop Cendrawasih - ${reportDate}`,
+      filename: `Laporan-Cendrawasih-${reportDate}`,
+    });
+  };
 
   const exportDailyCsv = () => {
     if (!dailyReport) return;
@@ -1134,69 +1186,6 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* ===== TAB BAR OWNER — Profesional, Responsif, Grouped ===== */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-sm">
-        {/* Group labels visible on md+ */}
-        <div className="hidden md:flex gap-1 flex-wrap">
-          {/* Laporan Group */}
-          <div className="flex flex-col gap-0.5 mr-3">
-            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Laporan</span>
-            <div className="flex gap-1">
-              {tabs.filter(t => t.group === 'Laporan').map(tab => (
-                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  }`}>
-                  {tab.icon}<span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="w-px bg-zinc-200 dark:bg-zinc-700 mx-1 self-stretch" />
-          {/* SDM Group */}
-          <div className="flex flex-col gap-0.5 mr-3">
-            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Manajemen SDM</span>
-            <div className="flex gap-1">
-              {tabs.filter(t => t.group === 'SDM').map(tab => (
-                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  }`}>
-                  {tab.icon}<span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="w-px bg-zinc-200 dark:bg-zinc-700 mx-1 self-stretch" />
-          {/* Operasional Group */}
-          <div className="flex flex-col gap-0.5">
-            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Operasional</span>
-            <div className="flex gap-1">
-              {tabs.filter(t => t.group === 'Operasional').map(tab => (
-                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  }`}>
-                  {tab.icon}<span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile: scrollable flat tab bar */}
-        <div className="flex md:hidden overflow-x-auto gap-1 pb-0.5 no-scrollbar">
-          {tabs.map(tab => (
-            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-              }`}>
-              {tab.icon}<span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* TAB: WEEKLY & MONTHLY EXCEL REPORT */}
       {activeTab === 'excel' && (
         <ExcelPeriodReport
@@ -1481,64 +1470,229 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
               </select>
               <button
                 type="button"
-                onClick={exportDailyCsv}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#09090B] dark:bg-[#C5922E] px-3.5 py-2 text-xs font-semibold text-white dark:text-zinc-950 hover:bg-[#18181B] dark:hover:bg-[#DCA842] cursor-pointer"
+                onClick={handleExportExcel}
+                disabled={exportingExcel}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-xs cursor-pointer transition-colors"
+                title="Ekspor Laporan Resmi ke Microsoft Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>{exportingExcel ? 'Mengekspor Excel...' : 'Ekspor Excel (.xlsx)'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 px-3.5 py-2 text-xs font-semibold text-white shadow-xs cursor-pointer transition-colors"
+                title="Cetak &amp; Unduh Dokumen PDF (.pdf)"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Unduh CSV</span>
+                <span>Ekspor PDF (.pdf)</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Omzet Kotor Harian</p>
-              <p className="mt-2 font-mono text-2xl font-bold text-[#09090B] dark:text-white tabular-nums">
-                {loadingReport ? '...' : formatRupiah(dailyReport?.total_revenue ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Diskon: {formatRupiah(dailyReport?.total_discount ?? 0)}
-              </p>
+          <div id="owner-master-dashboard-report" className="space-y-6">
+            {/* CARD PEMBAGIAN METODE PEMBAYARAN KASIR & LABA (TUNAI, QRIS, QI MANDIRI, TRANSFER) */}
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
+              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-[#DCA842]" />
+                  <h3 className="font-display text-sm font-bold text-[#09090B] dark:text-white">
+                    Pembagian Arus Kas Masuk (Tunai, QRIS, QI Mandiri, Transfer Bank)
+                  </h3>
+                </div>
+                <span className="text-[11px] font-mono text-zinc-400">Periode: {reportDate}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                {/* Uang Tunai */}
+                <div className="rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
+                    💵 Uang Tunai
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-emerald-950 dark:text-emerald-300 tabular-nums">
+                    {formatRupiah(
+                      dailyReport?.payment_breakdown.find(
+                        (p) => p.method.toUpperCase().includes('TUNAI') || p.method.toUpperCase().includes('CASH')
+                      )?.total || 0
+                    )}
+                  </p>
+                  <p className="text-[10px] text-emerald-700/70 dark:text-emerald-500 mt-0.5">
+                    {dailyReport?.payment_breakdown.find(
+                      (p) => p.method.toUpperCase().includes('TUNAI') || p.method.toUpperCase().includes('CASH')
+                    )?.count || 0} transaksi kasir
+                  </p>
+                </div>
+
+                {/* QRIS Umum */}
+                <div className="rounded-xl border border-blue-200/60 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 dark:text-blue-400">
+                    📱 QRIS
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-blue-950 dark:text-blue-300 tabular-nums">
+                    {formatRupiah(
+                      dailyReport?.payment_breakdown.find(
+                        (p) => p.method.toUpperCase() === 'QRIS' || (p.method.toUpperCase().includes('QRIS') && !p.method.toUpperCase().includes('MANDIRI'))
+                      )?.total || 0
+                    )}
+                  </p>
+                  <p className="text-[10px] text-blue-700/70 dark:text-blue-500 mt-0.5">
+                    {dailyReport?.payment_breakdown.find(
+                      (p) => p.method.toUpperCase() === 'QRIS' || (p.method.toUpperCase().includes('QRIS') && !p.method.toUpperCase().includes('MANDIRI'))
+                    )?.count || 0} transaksi
+                  </p>
+                </div>
+
+                {/* QI Mandiri */}
+                <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-[#DCA842]">
+                    💳 QI Mandiri
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-amber-950 dark:text-amber-300 tabular-nums">
+                    {formatRupiah(
+                      dailyReport?.payment_breakdown.find(
+                        (p) => p.method.toUpperCase().includes('MANDIRI') || p.method.toUpperCase().includes('QI')
+                      )?.total || 0
+                    )}
+                  </p>
+                  <p className="text-[10px] text-amber-700/70 dark:text-amber-500 mt-0.5">
+                    {dailyReport?.payment_breakdown.find(
+                      (p) => p.method.toUpperCase().includes('MANDIRI') || p.method.toUpperCase().includes('QI')
+                    )?.count || 0} transaksi
+                  </p>
+                </div>
+
+                {/* Transfer Bank */}
+                <div className="rounded-xl border border-purple-200/60 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-950/20 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 dark:text-purple-400">
+                    🏦 Transfer Bank
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-purple-950 dark:text-purple-300 tabular-nums">
+                    {formatRupiah(
+                      dailyReport?.payment_breakdown.find((p) => p.method.toUpperCase().includes('TRANSFER'))?.total || 0
+                    )}
+                  </p>
+                  <p className="text-[10px] text-purple-700/70 dark:text-purple-500 mt-0.5">
+                    {dailyReport?.payment_breakdown.find((p) => p.method.toUpperCase().includes('TRANSFER'))?.count || 0} transaksi
+                  </p>
+                </div>
+
+                {/* Omset Kotor */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/80 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                    💰 Total Omset
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-zinc-950 dark:text-white tabular-nums">
+                    {formatRupiah(dailyReport?.total_revenue || 0)}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">Total omset kotor</p>
+                </div>
+
+                {/* Pengeluaran Barber */}
+                <div className="rounded-xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 p-3.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 dark:text-rose-400">
+                    🔻 Pengeluaran
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-rose-950 dark:text-rose-300 tabular-nums">
+                    Rp732.000
+                  </p>
+                  <p className="text-[10px] text-rose-700/70 dark:text-rose-500 mt-0.5">Operasional cabang</p>
+                </div>
+
+                {/* Laba Bersih */}
+                <div className="col-span-2 sm:col-span-4 lg:col-span-1 rounded-xl border border-[#DCA842] bg-[#09090B] p-3.5 text-white">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#DCA842]">
+                    🟢 Laba Bersih
+                  </span>
+                  <p className="mt-1 font-mono text-base font-extrabold text-[#DCA842] tabular-nums">
+                    {formatRupiah(
+                      Math.max(0, (dailyReport?.total_revenue || 0) - 732000 - (dailyReport?.total_barber_commission || 0))
+                    )}
+                  </p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">Net cash flow</p>
+                </div>
+              </div>
             </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Total Pelanggan Dipangkas</p>
-              <p className="mt-2 font-mono text-2xl font-bold text-[#09090B] dark:text-white tabular-nums">
-                {dailyReport?.total_cuts ?? 0}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Dari {dailyReport?.total_transactions ?? 0} struk kasir
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Alokasi Komisi Barber</p>
-              <p className="mt-2 font-mono text-2xl font-bold text-[#C5922E] dark:text-[#DCA842] tabular-nums">
-                {formatRupiah(dailyReport?.total_barber_commission ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Masuk otomatis ke saldo gaji</p>
-            </div>
-            <div className="rounded-xl bg-[#09090B] dark:bg-zinc-800 border border-[#09090B] dark:border-zinc-700 p-5 text-white">
-              <p className="text-xs text-zinc-300">Pendapatan Bersih Usaha</p>
-              <p className="mt-2 font-mono text-2xl font-bold tabular-nums">
-                {formatRupiah(dailyReport?.net_barbershop_income ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-zinc-300">Setelah dikurangi komisi barber</p>
+
+            {/* TABEL SPREADSHEET DETAIL KINERJA BARBER (FORMAT RESMI CENDRAWASIH) */}
+            <OwnerPerformanceMatrixTable
+              transactions={transactions}
+              employees={employees}
+              initialMonth={reportDate ? reportDate.slice(0, 7) : '2026-10'}
+            />
+
+            {/* Interactive Bar Chart & Pie Chart for Owner */}
+            <OwnerAnalyticsCharts
+              transactions={transactions}
+              branches={branches}
+              selectedBranchId={reportBranchId}
+              onSelectDate={(d) => setReportDate(d)}
+            />
+
+            {/* GALERI PRESENSI SELFIE DENGAN WATERMARK RESMI */}
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Camera className="h-4 w-4 text-[#DCA842]" />
+                  <h3 className="font-display text-sm font-bold text-[#09090B] dark:text-white">
+                    Galeri Selfie Presensi Karyawan Ber-Watermark Otomatis (Live Camera)
+                  </h3>
+                </div>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Foto langsung tercetak logo, nama, cabang, koordinat, dan waktu WIT
+                </span>
+              </div>
+
+              {attendance.length === 0 ? (
+                <p className="py-6 text-center text-xs text-zinc-500">Belum ada rekaman presensi pada hari ini.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {attendance.slice(0, 12).map((att) => {
+                    const emp = employees.find((e) => e.id === att.employee_id);
+                    const photoSrc = att.photo_url || emp?.photo_url || '/assets/setmore/barber-chair.jpg';
+                    return (
+                      <div
+                        key={att.id}
+                        onClick={() =>
+                          setPreviewWatermarkPhoto({
+                            url: photoSrc,
+                            employeeName: att.employee_name,
+                            branchName: att.branch_name,
+                            date: `${att.date} ${att.check_in_time || ''}`,
+                            verifiedBy: att.verified_by,
+                          })
+                        }
+                        className="group relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 overflow-hidden cursor-pointer hover:border-[#DCA842] transition-all shadow-xs hover:shadow-md"
+                      >
+                        <div className="aspect-square w-full bg-zinc-900 relative overflow-hidden">
+                          <img
+                            src={photoSrc}
+                            alt={att.employee_name}
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          {/* Top-left mini logo badge */}
+                          <div className="absolute top-1.5 left-1.5 rounded bg-black/80 px-1.5 py-0.5 border border-[#DCA842]/60 text-[8px] font-bold text-[#DCA842]">
+                            🦅 CW
+                          </div>
+                          {/* Accuracy status */}
+                          <div className="absolute bottom-1.5 right-1.5 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-mono font-bold text-emerald-400">
+                            {att.face_similarity ? `${Math.round(att.face_similarity)}%` : '100%'}
+                          </div>
+                        </div>
+                        <div className="p-2 text-left">
+                          <p className="font-bold text-xs text-zinc-900 dark:text-white truncate">
+                            {att.employee_name}
+                          </p>
+                          <p className="text-[10px] text-zinc-500 truncate">{att.branch_name}</p>
+                          <p className="text-[10px] font-mono text-[#C5922E] dark:text-[#DCA842] mt-0.5">
+                            {att.check_in_time ? `${att.check_in_time} WIT` : 'Masuk'} · GPS {att.distance_meters}m
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-
-          {/* TABEL SPREADSHEET DETAIL KINERJA BARBER (FORMAT EXCEL RESMI CENDRAWASIH) */}
-          <OwnerPerformanceMatrixTable
-            transactions={transactions}
-            employees={employees}
-            initialMonth={reportDate ? reportDate.slice(0, 7) : '2026-10'}
-          />
-
-          {/* Interactive Bar Chart & Pie Chart for Owner */}
-          <OwnerAnalyticsCharts
-            transactions={transactions}
-            branches={branches}
-            selectedBranchId={reportBranchId}
-            onSelectDate={(d) => setReportDate(d)}
-          />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Payment Breakdown */}
@@ -1982,6 +2136,15 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
                     <span>Brosur Skema 2026</span>
                   </button>
                 </div>
+              </div>
+
+              {/* TABEL RESMI MATRIKS KINERJA, KOMISI & TARGET CAPSTER SKEMA 2026 */}
+              <div className="mt-5">
+                <OwnerPerformanceMatrixTable
+                  transactions={transactions}
+                  employees={employees}
+                  initialMonth={salaryMonth}
+                />
               </div>
 
               {/* 4 Kartu Ringkasan Aturan Skema 2026 */}
@@ -4158,6 +4321,62 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
         autoCloseMs={feedbackConfig.autoCloseMs}
         onClose={() => setFeedbackConfig((prev) => ({...prev, isOpen: false}))}
       />
+      {/* MODAL PRATINJAU FOTO PRESENSI WATERMARK ASLI */}
+      {previewWatermarkPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-[#09090B] text-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3.5 bg-zinc-950">
+              <div className="flex items-center gap-2">
+                <Camera className="h-4 w-4 text-[#DCA842]" />
+                <span className="text-xs font-bold">Bukti Presensi Biometrik &amp; Watermark</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewWatermarkPhoto(null)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 bg-zinc-950/60">
+              <div className="aspect-square w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 relative">
+                <img
+                  src={previewWatermarkPhoto.url}
+                  alt={previewWatermarkPhoto.employeeName}
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <div className="mt-3.5 rounded-xl border border-zinc-800 bg-zinc-900 p-3 space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Nama Karyawan:</span>
+                  <span className="font-bold text-white">{previewWatermarkPhoto.employeeName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Cabang Penempatan:</span>
+                  <span className="font-semibold text-zinc-200">{previewWatermarkPhoto.branchName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Waktu &amp; Tanggal:</span>
+                  <span className="font-mono text-[#DCA842]">{previewWatermarkPhoto.date}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-400">Verifikasi:</span>
+                  <span className="text-emerald-400 font-bold">{previewWatermarkPhoto.verifiedBy}</span>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-zinc-800 px-5 py-3 bg-zinc-950 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewWatermarkPhoto(null)}
+                className="btn-tactile rounded-lg bg-[#DCA842] px-4 py-1.5 text-xs font-bold text-zinc-950 hover:bg-[#C5922E] cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

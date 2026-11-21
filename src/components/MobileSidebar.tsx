@@ -185,8 +185,8 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({
           </button>
         </div>
 
-        {/* User Card */}
-        {currentUser ? (
+        {/* User Card (Hanya Tampil Jika Staf Login) */}
+        {currentUser && (
           <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
@@ -224,66 +224,91 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({
               </div>
             </div>
           </div>
-        ) : (
-          <div className="p-4 border-b border-zinc-800">
-            <button
-              type="button"
-              onClick={() => { onLoginClick(); onClose(); }}
-              className="w-full rounded-xl bg-[#DCA842] text-zinc-950 py-2.5 text-sm font-bold hover:bg-[#C5922E] transition-colors cursor-pointer"
-            >
-              Masuk Staf
-            </button>
-          </div>
         )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          {menuGroups.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                {group.label}
+          {currentUser ? (
+            menuGroups.map((group) => (
+              <div key={group.label}>
+                <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  {group.label}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNav(item.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer group ${
+                          isActive
+                            ? 'bg-[#DCA842] text-zinc-950'
+                            : 'text-zinc-400 hover:text-white hover:bg-zinc-800/80'
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-950' : 'text-zinc-400 group-hover:text-white'}`} />
+                        <span className="flex-1 text-left truncate">{item.label}</span>
+                        {isActive && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-950/60" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            /* Navigasi Lengkap Halaman Publik di Mobile Sidebar (Tanpa Masuk Staf & Tanpa Mode Gelap) */
+            <div>
+              <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-[#DCA842]">
+                Menu Pelanggan
               </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeView === item.id;
+              <div className="space-y-1">
+                {[
+                  {href: '#hero', label: 'Beranda Utama', icon: Globe},
+                  {href: '#barber-kami', label: 'Barber Profesional Kami', icon: Users},
+                  {href: '#layanan', label: 'Layanan & Model Rambut Pria', icon: Scissors},
+                  {href: '#promo', label: 'Promo & Pengumuman', icon: Award},
+                  {href: '#lokasi', label: 'Lokasi & Jadwal Cabang', icon: MapPin},
+                  {href: '#tentang-kami', label: 'Tentang Barbershop Cendrawasih', icon: Sparkles || Globe},
+                ].map((link) => {
+                  const Icon = link.icon;
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleNav(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer group ${
-                        isActive
-                          ? 'bg-[#DCA842] text-zinc-950'
-                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800/80'
-                      }`}
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      onClick={onClose}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-all cursor-pointer"
                     >
-                      <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-zinc-950' : 'text-zinc-400 group-hover:text-white'}`} />
-                      <span className="flex-1 text-left truncate">{item.label}</span>
-                      {isActive && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-950/60" />}
-                    </button>
+                      <Icon className="h-4 w-4 text-[#DCA842]" />
+                      <span className="flex-1">{link.label}</span>
+                      <ChevronRight className="h-3.5 w-3.5 text-zinc-600" />
+                    </a>
                   );
                 })}
               </div>
             </div>
-          ))}
+          )}
         </nav>
 
         {/* Footer */}
         <div className="p-3 border-t border-zinc-800 space-y-2 shrink-0 bg-zinc-950/60">
-          {/* Theme Toggle */}
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-4 w-4 text-[#DCA842]" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-            <span>{theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}</span>
-          </button>
+          {/* Theme Toggle (Hanya Ditampilkan Saat Staf Login, Disembunyikan pada Publik Sesuai Permintaan) */}
+          {currentUser && (
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4 text-[#DCA842]" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+              <span>{theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}</span>
+            </button>
+          )}
 
           {/* Logout */}
           {currentUser && (

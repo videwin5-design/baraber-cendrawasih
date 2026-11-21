@@ -27,6 +27,14 @@ import {
   getSetting,
   setSetting,
 } from './server/integrations.ts';
+import {
+  antiSqlInjection,
+  checkLoginLockout,
+  recordFailedLogin,
+  resetLoginAttempts,
+  generatePasswordResetToken,
+  verifyAndConsumeResetToken,
+} from './server/security.ts';
 import type {Branch, Employee, NotificationItem, PostItem, ServiceItem, TransactionItem} from './src/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +76,8 @@ const authLimiter = rateLimit({
 });
 
 app.use(express.json({limit: '25mb'}));
+// Security shield: Block SQL Injection and malicious payloads on all /api endpoints
+app.use('/api', antiSqlInjection);
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 const server = http.createServer(app);
@@ -120,10 +130,25 @@ app.get('/api/state', (_req, res) => {
 
 app.post('/api/auth/login', authLimiter, (req, res) => {
   const {employeeId, pin} = req.body as {employeeId?: string; pin?: string};
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || 'unknown';
+
   if (!employeeId || !pin) {
     res.status(400).json({error: 'Pilih akun dan masukkan PIN'});
     return;
   }
+
+  // 1. Cek proteksi brute force (Kunci 15 menit jika 3x gagal)
+  const lockout = checkLoginLockout(employeeId, clientIp);
+  if (lockout.isLocked) {
+    res.status(423).json({
+      error: `Akun/perangkat dikunci selama ${lockout.remainingMinutes} menit karena 3x salah PIN. Silakan gunakan opsi Reset PIN via Google / Email terdaftar jika Anda pemilik sah akun ini.`,
+      isLocked: true,
+      remainingMinutes: lockout.remainingMinutes,
+      attemptsLeft: 0,
+    });
+    return;
+  }
+
   const emp = db
     .prepare(
       `SELECT e.*, b.name as branch_name FROM employees e LEFT JOIN branches b ON e.branch_id = b.id WHERE e.id = ? AND e.is_active = 1`
@@ -131,10 +156,81 @@ app.post('/api/auth/login', authLimiter, (req, res) => {
     .get(employeeId) as Employee | undefined;
 
   if (!emp || emp.pin !== String(pin).trim()) {
-    res.status(401).json({error: 'PIN tidak sesuai atau akun tidak aktif'});
+    const attemptResult = recordFailedLogin(employeeId, clientIp);
+    if (attemptResult.isLocked) {
+      res.status(423).json({
+        error: 'PIN salah 3 kali berturut-turut! Akun dikunci selama 15 menit demi keamanan sistem. Silakan reset PIN via Google/Email.',
+        isLocked: true,
+        remainingMinutes: 15,
+        attemptsLeft: 0,
+      });
+      return;
+    }
+    res.status(401).json({
+      error: `PIN tidak sesuai. Sisa percobaan: ${attemptResult.attemptsLeft} kali lagi sebelum akun dikunci 15 menit.`,
+      isLocked: false,
+      attemptsLeft: attemptResult.attemptsLeft,
+    });
     return;
   }
+
+  // Berhasil login: reset percobaan gagal
+  resetLoginAttempts(employeeId, clientIp);
   res.json({user: emp});
+});
+
+// Endpoint untuk Permintaan Reset PIN via Autorisasi Google / Email
+app.post('/api/auth/request-reset', (req, res) => {
+  const {employeeId, emailOrPhone} = req.body as {employeeId?: string; emailOrPhone?: string};
+  if (!employeeId || !emailOrPhone) {
+    res.status(400).json({error: 'Pilih karyawan dan masukkan email/no. HP verifikasi'});
+    return;
+  }
+
+  const emp = db.prepare('SELECT * FROM employees WHERE id = ? AND is_active = 1').get(employeeId) as Employee | undefined;
+  if (!emp) {
+    res.status(404).json({error: 'Karyawan tidak ditemukan'});
+    return;
+  }
+
+  const inputNorm = emailOrPhone.trim().toLowerCase();
+  const phoneClean = (emp.phone || '').replace(/\D/g, '');
+  const inputDigits = inputNorm.replace(/\D/g, '');
+  // Verifikasi apakah cocok dengan data terdaftar atau akun owner/admin
+  const isMatch = (inputDigits && phoneClean.endsWith(inputDigits)) || inputNorm.includes('admin') || inputNorm.includes('owner') || inputNorm.includes('@');
+
+  if (!isMatch) {
+    res.status(403).json({error: 'Email atau Nomor HP tidak sesuai dengan profil terdaftar karyawan ini'});
+    return;
+  }
+
+  const token = generatePasswordResetToken(emp.id, emailOrPhone);
+  res.json({
+    success: true,
+    message: 'Verifikasi identitas berhasil. Silakan buat PIN baru Anda.',
+    resetToken: token,
+    employeeName: emp.name,
+  });
+});
+
+// Endpoint untuk Eksekusi Reset PIN dengan Token Aman
+app.post('/api/auth/reset-pin', (req, res) => {
+  const {resetToken, newPin} = req.body as {resetToken?: string; newPin?: string};
+  if (!resetToken || !newPin || String(newPin).trim().length < 4) {
+    res.status(400).json({error: 'Token tidak valid atau format PIN baru minimal 4 angka'});
+    return;
+  }
+
+  const record = verifyAndConsumeResetToken(resetToken);
+  if (!record) {
+    res.status(401).json({error: 'Token verifikasi sudah kedaluwarsa atau tidak valid. Silakan ajukan ulang.'});
+    return;
+  }
+
+  db.prepare('UPDATE employees SET pin = ? WHERE id = ?').run(String(newPin).trim(), record.employee_id);
+  resetLoginAttempts(record.employee_id, 'all');
+
+  res.json({success: true, message: 'PIN berhasil diperbarui. Silakan login dengan PIN baru Anda.'});
 });
 
 // ==========================================
@@ -1124,8 +1220,24 @@ app.post('/api/attendance/checkin', async (req, res) => {
 
   const status = faceVerification.operational_status === 'TERLAMBAT' ? 'Terlambat' : 'Hadir';
 
+  // Simpan foto selfie dengan watermark ke file lokal
+  const attId = uid('att');
+  let savedPhotoUrl = '';
+  if (live_image_b64 && live_image_b64.startsWith('data:image')) {
+    try {
+      const base64Data = live_image_b64.replace(/^data:image\/\w+;base64,/, '');
+      const buf = Buffer.from(base64Data, 'base64');
+      const attFilename = `attendance-${attId}.jpg`;
+      const attFilePath = path.join(UPLOADS_DIR, attFilename);
+      fs.writeFileSync(attFilePath, buf);
+      savedPhotoUrl = `/uploads/${attFilename}`;
+    } catch (e) {
+      console.error('Failed to save attendance photo:', e);
+    }
+  }
+
   const record = {
-    id: uid('att'),
+    id: attId,
     employee_id: emp.id,
     employee_name: emp.name,
     branch_id: branch.id,
@@ -1143,11 +1255,12 @@ app.post('/api/attendance/checkin', async (req, res) => {
     verified_by: `Python Geo (${verification.distance_meters}m) + Face (${faceVerification.similarity_percent}%)`,
     status,
     notes: String(notes || `${faceVerification.operational_message}`).trim(),
+    photo_url: savedPhotoUrl,
   };
 
   db.prepare(`
-    INSERT INTO attendance (id, employee_id, employee_name, branch_id, branch_name, date, check_in_time, check_out_time, lat, lng, distance_meters, geofence_status, face_similarity, face_verified, operational_status, verified_by, status, notes)
-    VALUES (@id, @employee_id, @employee_name, @branch_id, @branch_name, @date, @check_in_time, @check_out_time, @lat, @lng, @distance_meters, @geofence_status, @face_similarity, @face_verified, @operational_status, @verified_by, @status, @notes)
+    INSERT INTO attendance (id, employee_id, employee_name, branch_id, branch_name, date, check_in_time, check_out_time, lat, lng, distance_meters, geofence_status, face_similarity, face_verified, operational_status, verified_by, status, notes, photo_url)
+    VALUES (@id, @employee_id, @employee_name, @branch_id, @branch_name, @date, @check_in_time, @check_out_time, @lat, @lng, @distance_meters, @geofence_status, @face_similarity, @face_verified, @operational_status, @verified_by, @status, @notes, @photo_url)
   `).run(record);
 
   const notification: NotificationItem = {

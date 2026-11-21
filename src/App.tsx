@@ -485,13 +485,14 @@ export default function App() {
                 ))}
               </nav>
 
+              {/* Sisi Kanan Header Publik: Bersih tanpa tombol masuk staf sesuai permintaan */}
               <div className="flex items-center gap-2">
-                {/* Theme Toggle — hanya tampil di md ke atas; di mobile jadi floating button */}
+                {/* Theme Toggle Desktop */}
                 <button
                   type="button"
                   onClick={toggleTheme}
                   title="Ganti Tema"
-                  className="hidden md:flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300"
+                  className="hidden md:flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   {theme === 'dark' ? (
                     <Sun className="h-4 w-4 text-[#DCA842]" />
@@ -499,18 +500,25 @@ export default function App() {
                     <Moon className="h-4 w-4" />
                   )}
                 </button>
-
-                {/* Masuk Staf — disembunyikan di mobile */}
-                <button
-                  type="button"
-                  onClick={() => setLoginOpen(true)}
-                  className="hidden sm:flex rounded-xl bg-[#09090B] dark:bg-[#DCA842] text-white dark:text-zinc-950 px-4 py-2 text-xs font-bold shadow-sm transition-all hover:scale-105 cursor-pointer"
-                >
-                  Masuk Staf
-                </button>
               </div>
             </div>
           </header>
+        )}
+
+        {/* Tombol Tema Mengapung Khusus Mobile Tampilan Publik */}
+        {!currentUser && (
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Ganti Tema"
+            className="md:hidden fixed bottom-20 left-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/90 text-zinc-800 dark:text-zinc-100 shadow-xl backdrop-blur-md transition-all active:scale-95 cursor-pointer"
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-4 w-4 text-[#DCA842]" />
+            ) : (
+              <Moon className="h-4 w-4 text-zinc-700" />
+            )}
+          </button>
         )}
 
         {/* 3. MAIN CONTENT */}

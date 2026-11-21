@@ -193,6 +193,7 @@ export interface AttendanceRecord {
   face_similarity?: number | null;
   face_verified?: number;
   operational_status?: string;
+  photo_url?: string;
   verified_by: string;
   status: 'Hadir' | 'Terlambat' | 'Selesai' | 'Ditolak';
   notes: string;

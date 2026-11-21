@@ -20,7 +20,6 @@ import {
   Signal,
   Sparkles,
   Star,
-  Upload,
   User,
   Video,
   VideoOff,
@@ -186,7 +185,47 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Real-time lighting & luminance state
+  const [lighting, setLighting] = useState<{status: 'dark' | 'bright' | 'good'; text: string; score: number}>({
+    status: 'good',
+    text: '✅ Pencahayaan Pas & Jelas',
+    score: 120,
+  });
+
+  // Sampling real-time luminance from active camera feed
+  useEffect(() => {
+    if (!cameraActive) return;
+    const interval = setInterval(() => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+      try {
+        const v = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(v, 0, 0, 64, 64);
+        const imgData = ctx.getImageData(0, 0, 64, 64);
+        const d = imgData.data;
+        let sum = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        }
+        const avg = Math.round(sum / (d.length / 4));
+        if (avg < 60) {
+          setLighting({status: 'dark', text: '⚠️ Terlalu Gelap — Arahkan wajah ke cahaya', score: avg});
+        } else if (avg > 215) {
+          setLighting({status: 'bright', text: '⚠️ Terlalu Silau — Kurangi sorotan cahaya', score: avg});
+        } else {
+          setLighting({status: 'good', text: '✅ Pencahayaan Pas & Jelas', score: avg});
+        }
+      } catch {
+        // Abaikan galat sampling frame
+      }
+    }, 350);
+    return () => clearInterval(interval);
+  }, [cameraActive]);
 
   useEffect(() => {
     return () => {
@@ -320,22 +359,74 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
 
   const handleSnapPhoto = async () => {
     if (!videoRef.current) return;
-    const snap = captureVideoFrameToDataUrl(videoRef.current, 320);
-    if (!snap) { setCameraError('Kamera belum siap, tunggu 1 detik lalu ulangi'); return; }
-    stopCamera();
-    await verifyFace(snap);
-  };
-
-  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const b64 = await compressImageFileToSquareDataUrl(file, 320);
-      stopCamera();
-      await verifyFace(b64);
-    } catch {
-      setCameraError('Gagal memproses file foto');
+    const v = videoRef.current;
+    if (v.videoWidth === 0 || v.videoHeight === 0) {
+      setCameraError('Kamera sedang memuat, silakan tunggu 1 detik lalu coba kembali');
+      return;
     }
+
+    const canvas = document.createElement('canvas');
+    const size = 640;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 1. Gambar cermin frame video kamera live
+    ctx.save();
+    ctx.translate(size, 0);
+    ctx.scale(-1, 1);
+    const minDim = Math.min(v.videoWidth, v.videoHeight);
+    const sx = (v.videoWidth - minDim) / 2;
+    const sy = (v.videoHeight - minDim) / 2;
+    ctx.drawImage(v, sx, sy, minDim, minDim, 0, 0, size, size);
+    ctx.restore();
+
+    // 2. Watermark Logo Barbershop Cendrawasih di Pojok Kiri Atas
+    ctx.fillStyle = 'rgba(9, 9, 11, 0.88)';
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 255, 46, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#DCA842';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#DCA842';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('BARBERSHOP CENDRAWASIH', 28, 35);
+    ctx.fillStyle = '#A1A1AA';
+    ctx.font = '10px monospace';
+    ctx.fillText('PRESENSI BIOMETRIK RESMI', 28, 51);
+
+    // 3. Watermark Bar Bawah dengan Informasi Lengkap
+    const bannerHeight = 110;
+    ctx.fillStyle = 'rgba(9, 9, 11, 0.92)';
+    ctx.fillRect(0, size - bannerHeight, size, bannerHeight);
+    ctx.fillStyle = '#DCA842';
+    ctx.fillRect(0, size - bannerHeight, size, 3); // Aksen emas garis batas
+
+    // Detail identitas presensi
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillText(`👤 ${activeEmployee?.name || 'Karyawan'} (ID: ${activeEmployee?.id || '-'})`, 20, size - 80);
+
+    ctx.fillStyle = '#D4D4D8';
+    ctx.font = '12px sans-serif';
+    const latStr = coords ? coords.lat.toFixed(5) : '-';
+    const lngStr = coords ? coords.lng.toFixed(5) : '-';
+    ctx.fillText(`📍 ${activeBranch?.name || 'Cabang'} · GPS: [${latStr}, ${lngStr}]`, 20, size - 58);
+
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#FBBF24';
+    ctx.fillText(`🕒 ${dateStr} · ${currentTimeStr} WIT (Waktu Indonesia Timur)`, 20, size - 36);
+
+    ctx.fillStyle = '#34D399';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText(`🛡️ VERIFIKASI WAJAH BIOMETRIK & GPS TERVALIDASI`, 20, size - 16);
+
+    const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    stopCamera();
+    await verifyFace(watermarkedDataUrl);
   };
 
   const handleQuickAutoPresensi = async () => {
@@ -651,19 +742,32 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                         <div className="absolute top-3 right-3 h-7 w-7 border-t-2 border-r-2 border-[#DCA842] rounded-tr-lg" />
                         <div className="absolute bottom-3 left-3 h-7 w-7 border-b-2 border-l-2 border-[#DCA842] rounded-bl-lg" />
                         <div className="absolute bottom-3 right-3 h-7 w-7 border-b-2 border-r-2 border-[#DCA842] rounded-br-lg" />
-                        {/* Face oval */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="h-44 w-32 rounded-[50%] border-2 border-dashed border-[#DCA842]/60 shadow-[0_0_16px_rgba(220,168,66,0.2)]" />
+                        
+                        {/* Face oval guide with dynamic lighting feedback border */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <div className={`h-44 w-32 rounded-[50%] border-2 border-dashed transition-all duration-300 ${
+                            lighting.status === 'good'
+                              ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.35)]'
+                              : lighting.status === 'dark'
+                              ? 'border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.35)]'
+                              : 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.35)]'
+                          }`} />
                         </div>
                         {/* Scanning laser */}
                         <div
                           className="absolute left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#DCA842] to-transparent shadow-[0_0_6px_#DCA842]"
                           style={{top: `${10 + scanLine * 0.8}%`}}
                         />
-                        {/* Label */}
-                        <div className="absolute bottom-5 inset-x-0 text-center">
-                          <span className="text-[9px] font-bold text-[#DCA842] bg-black/60 px-2.5 py-1 rounded-full">
-                            Posisikan Wajah di Tengah
+                        {/* Dynamic Real-time Lighting & Position Badge */}
+                        <div className="absolute bottom-3 inset-x-2 text-center">
+                          <span className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-full border shadow-md backdrop-blur-md ${
+                            lighting.status === 'good'
+                              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                              : lighting.status === 'dark'
+                              ? 'bg-rose-950/80 border-rose-500 text-rose-300'
+                              : 'bg-amber-950/80 border-amber-500 text-amber-300'
+                          }`}>
+                            {lighting.text}
                           </span>
                         </div>
                       </div>
@@ -678,7 +782,7 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                         <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
                           <div className="text-center space-y-2">
                             <div className="h-9 w-9 rounded-full border-2 border-[#DCA842] border-t-transparent animate-spin mx-auto" />
-                            <p className="text-[11px] font-bold text-[#DCA842]">AI Memproses Wajah...</p>
+                            <p className="text-[11px] font-bold text-[#DCA842]">AI Memproses Watermark & Wajah...</p>
                           </div>
                         </div>
                       ) : faceResult ? (
@@ -687,7 +791,7 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                             faceResult.face_match ? 'border-emerald-500/50 bg-emerald-600/80' : 'border-rose-500/50 bg-rose-600/80'
                           }`}>
                             <p className="text-[11px] font-black text-white">
-                              {faceResult.face_match ? '✅ Wajah Cocok' : '❌ Wajah Tidak Cocok'}
+                              {faceResult.face_match ? '✅ Wajah Terverifikasi Cocok' : '❌ Wajah Tidak Cocok'}
                             </p>
                             {faceMatch !== null && (
                               <p className="text-[10px] text-white/80 mt-0.5">Akurasi: {faceMatch}%</p>
@@ -709,8 +813,8 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                           <span className="text-[8px] font-black text-[#DCA842]">AI</span>
                         </div>
                       </div>
-                      <p className="text-xs font-semibold text-zinc-500">Kamera Belum Aktif</p>
-                      <p className="text-[10px] text-zinc-600 text-center">Buka kamera atau unggah foto wajah</p>
+                      <p className="text-xs font-semibold text-zinc-400">Kamera Live Siap Diaktifkan</p>
+                      <p className="text-[10px] text-zinc-500 text-center">Hanya kamera langsung yang diizinkan untuk menjamin keaslian kehadiran</p>
                     </div>
                   )}
 
@@ -744,10 +848,10 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                     <button
                       type="button" onClick={startCamera}
                       disabled={cameraLoading || faceLoading}
-                      className="btn-tactile inline-flex items-center gap-2 rounded-xl bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 px-5 py-2.5 text-xs font-bold text-white cursor-pointer disabled:opacity-40"
+                      className="btn-tactile inline-flex items-center gap-2 rounded-xl bg-[#DCA842] hover:bg-[#C5922E] px-6 py-2.5 text-xs font-bold text-zinc-950 cursor-pointer shadow-md disabled:opacity-40"
                     >
-                      <Video className="h-4 w-4 text-[#DCA842]" />
-                      {cameraLoading ? 'Menghubungkan...' : '📸 Buka Kamera'}
+                      <Video className="h-4 w-4" />
+                      {cameraLoading ? 'Menghubungkan...' : '📸 Aktifkan Kamera Live'}
                     </button>
                   ) : (
                     <>
@@ -756,7 +860,7 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                         className="btn-tactile inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-bold text-white cursor-pointer shadow-lg shadow-emerald-500/20 disabled:opacity-50"
                       >
                         <Camera className="h-4 w-4" />
-                        {faceLoading ? 'Memverifikasi...' : '⚡ Ambil Foto'}
+                        {faceLoading ? 'Memverifikasi...' : '⚡ Ambil Foto & Verifikasi'}
                       </button>
                       <button
                         type="button" onClick={stopCamera}
@@ -776,14 +880,6 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
                       <RefreshCw className="h-3.5 w-3.5" /> Foto Ulang
                     </button>
                   )}
-
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="user" onChange={handleUploadPhoto} className="hidden" />
-                  <button
-                    type="button" onClick={() => fileInputRef.current?.click()} disabled={faceLoading}
-                    className="btn-tactile inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-3.5 py-2.5 text-xs font-semibold text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 cursor-pointer"
-                  >
-                    <Upload className="h-3.5 w-3.5" /> Unggah
-                  </button>
                 </div>
                 {cameraError && <p className="mt-2 text-center text-xs text-amber-400 font-medium">{cameraError}</p>}
               </div>

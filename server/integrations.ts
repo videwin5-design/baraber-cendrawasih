@@ -258,3 +258,4 @@ export function formatMessageTemplate(template: string, vars: Record<string, str
   }
   return result;
 }
+

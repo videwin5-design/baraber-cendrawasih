@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import { initSecurityTables } from './security.ts';
 import type {
   AppStatePayload,
   AttendanceRecord,
@@ -275,6 +276,12 @@ export function initDatabase() {
   if (!attCols.some((c) => c.name === 'operational_status')) {
     db.exec(`ALTER TABLE attendance ADD COLUMN operational_status TEXT DEFAULT ''`);
   }
+  if (!attCols.some((c) => c.name === 'photo_url')) {
+    db.exec(`ALTER TABLE attendance ADD COLUMN photo_url TEXT DEFAULT ''`);
+  }
+
+  // Initialize security and brute-force tracking tables
+  initSecurityTables();
 
   const branchCount = (db.prepare('SELECT COUNT(*) as c FROM branches').get() as {c: number}).c;
   if (branchCount === 0) {

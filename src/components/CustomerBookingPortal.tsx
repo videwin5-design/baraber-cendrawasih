@@ -87,6 +87,19 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // State Katalog Model Rambut & Seni Garis Bertingkat
+  const [showStyleModal, setShowStyleModal] = useState(false);
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<'HAIRCUT' | 'HAIR COLOR' | 'HAIR PERMING' | 'STYLING'>('HAIRCUT');
+  const [selectedSpecificStyle, setSelectedSpecificStyle] = useState<{
+    id: string;
+    category: string;
+    name: string;
+    subname: string;
+    description: string;
+    tag: string;
+    icon: string;
+  } | null>(null);
+
   // Dynamic layout modes (Card Grid vs List View) controllable by Owner
   const [serviceViewMode, setServiceViewMode] = useState<'card' | 'list'>(siteMedia?.services_layout || 'card');
   const [barberViewMode, setBarberViewMode] = useState<'card' | 'list'>(siteMedia?.barbers_layout || 'card');
@@ -290,6 +303,214 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const SPECIFIC_STYLES = [
+    // HAIRCUT & SENI GARIS (LINE ART)
+    {
+      id: 'style-line-single',
+      category: 'HAIRCUT',
+      name: 'Single Razor Part Line',
+      subname: 'Garis Belahan Pisau Cukur Tunggal',
+      description: 'Aksen garis tajam presisi di belahan rambut membuat tatanan rambut tampak tegas, simetris, dan maskulin.',
+      tag: 'Seni Garis Rambut',
+      icon: '⚡',
+    },
+    {
+      id: 'style-line-double',
+      category: 'HAIRCUT',
+      name: 'Double Parallel Lines',
+      subname: 'Garis Ganda Paralel Presisi',
+      description: 'Dua garis sejajar tipis di area pelipis atau belakang telinga, memberikan kesan sporty modern.',
+      tag: 'Seni Garis Rambut',
+      icon: '⚡',
+    },
+    {
+      id: 'style-line-lightning',
+      category: 'HAIRCUT',
+      name: 'Zig-Zag Lightning Pattern',
+      subname: 'Pola Garis Petir Artistik',
+      description: 'Pola garis petir geometris custom pada fade samping, tren street style kekinian.',
+      tag: 'Seni Garis Rambut',
+      icon: '⚡',
+    },
+    {
+      id: 'style-line-curve',
+      category: 'HAIRCUT',
+      name: 'Curved Arc Line Art',
+      subname: 'Garis Lengkung Aerodinamis',
+      description: 'Garis meliuk elegan mengikuti struktur lekukan tengkorak kepala dengan gradasi fade bersih.',
+      tag: 'Seni Garis Rambut',
+      icon: '⚡',
+    },
+    {
+      id: 'style-cut-lowfade',
+      category: 'HAIRCUT',
+      name: 'Low Fade with Line Design',
+      subname: 'Fade Rendah dengan Aksen Garis',
+      description: 'Gradasi halus dari leher bawah naik bertahap, disempurnakan dengan garis minimalis di pelipis.',
+      tag: 'Best Seller Fade',
+      icon: '✂️',
+    },
+    {
+      id: 'style-cut-taper',
+      category: 'HAIRCUT',
+      name: 'Mid Taper Fade Natural',
+      subname: 'Taper Sedang Rapi Bersih',
+      description: 'Hanya memudarkan area cambang dan tengkuk leher, bagian atas tetap panjang dan bervolume.',
+      tag: 'Formal & Casual',
+      icon: '✂️',
+    },
+    {
+      id: 'style-cut-frenchcrop',
+      category: 'HAIRCUT',
+      name: 'Textured French Crop',
+      subname: 'Crop Pendek Bertekstur Eropa',
+      description: 'Poni depan dipotong tumpul rata dengan bagian atas dibuat bertekstur, sangat cocok untuk iklim tropis.',
+      tag: 'Tren Terkini',
+      icon: '✂️',
+    },
+    {
+      id: 'style-cut-twoblock',
+      category: 'HAIRCUT',
+      name: 'Two-Block Korean Undercut',
+      subname: 'Gaya Korea 2 Tingkat Natural',
+      description: 'Sisi samping dipotong pendek rapi, rambut atas dibiarkan jatuh natural khas aktor Korea.',
+      tag: 'K-Style Populer',
+      icon: '✂️',
+    },
+    {
+      id: 'style-cut-mullet',
+      category: 'HAIRCUT',
+      name: 'Modern Drop Fade Mullet',
+      subname: 'Mullet Kontemporer Ramping',
+      description: 'Perpaduan fade samping tajam dengan bagian ekor belakang dinamis bervolume.',
+      tag: 'Retro Modern',
+      icon: '✂️',
+    },
+    {
+      id: 'style-cut-buzz',
+      category: 'HAIRCUT',
+      name: 'Military Buzz Cut Fade',
+      subname: 'Potongan Cepak Presisi Militer',
+      description: 'Panjang rambut seragam pendek dengan tepi garis hair line tajam di dahi.',
+      tag: 'Super Praktis',
+      icon: '✂️',
+    },
+
+    // HAIR COLOR (PEWARNAAN RAMBUT)
+    {
+      id: 'style-color-ashgrey',
+      category: 'HAIR COLOR',
+      name: 'Smokey Ash Grey Silver',
+      subname: 'Abu-Abu Perak Metalik Dingin',
+      description: 'Warna favorit premium dengan nuansa perak dingin elegan, memerlukan bleaching level 9+.',
+      tag: 'Warna Premium',
+      icon: '🎨',
+    },
+    {
+      id: 'style-color-blonde',
+      category: 'HAIR COLOR',
+      name: 'Platinum Blonde White',
+      subname: 'Pirang Platinum Terang',
+      description: 'Warna pirang keputihan bercahaya tinggi untuk penampilan berani dan fashionable.',
+      tag: 'High Bleach',
+      icon: '🎨',
+    },
+    {
+      id: 'style-color-highlight',
+      category: 'HAIR COLOR',
+      name: 'Frosted Tips Highlight',
+      subname: 'Aksen Emas Ujung Rambut',
+      description: 'Memberikan dimensi kedalaman warna rambut dengan mewarnai sebagian helai atas saja.',
+      tag: 'Dimensi Warna',
+      icon: '🎨',
+    },
+    {
+      id: 'style-color-brown',
+      category: 'HAIR COLOR',
+      name: 'Warm Caramel Brown',
+      subname: 'Cokelat Karamel Alami',
+      description: 'Warna hangat natural tanpa perlu bleaching tinggi, cocok untuk warna kulit Indonesia.',
+      tag: 'Natural Warm',
+      icon: '🎨',
+    },
+
+    // HAIR PERMING (PENGELOLAAN TEKSTUR & IKAL)
+    {
+      id: 'style-perm-wave',
+      category: 'HAIR PERMING',
+      name: 'Korean Wave Perm',
+      subname: 'Gelombang Ikal Alami K-Drama',
+      description: 'Menciptakan gelombang rambut alami agar rambut mudah ditata dan bervolume sepanjang hari.',
+      tag: 'K-Perming',
+      icon: '🌀',
+    },
+    {
+      id: 'style-perm-down',
+      category: 'HAIR PERMING',
+      name: 'Down Perm Samping',
+      subname: 'Merapikan Rambut Jabrik Samping',
+      description: 'Menekan rambut samping yang mengembang atau kaku agar menempel rapi ke kulit kepala.',
+      tag: 'Solusi Rambut Kaku',
+      icon: '🌀',
+    },
+    {
+      id: 'style-perm-spiral',
+      category: 'HAIR PERMING',
+      name: 'Textured Spiral Curl Perm',
+      subname: 'Keriting Spiral Penuh Karakter',
+      description: 'Memberikan tekstur keriting spiral tegas dan tebal untuk penampilan berjiwa seni.',
+      tag: 'Bold Style',
+      icon: '🌀',
+    },
+
+    // STYLING & TREATMENT
+    {
+      id: 'style-style-pomade',
+      category: 'STYLING',
+      name: 'Slick Back Pomade Finish',
+      subname: 'Kilau Rapi Formal Klimis',
+      description: 'Penataan rambut klimis formal dengan pomade premium berdaya rekat tinggi.',
+      tag: 'Gentleman Classic',
+      icon: '✨',
+    },
+    {
+      id: 'style-style-clay',
+      category: 'STYLING',
+      name: 'Matte Clay Messy Textured',
+      subname: 'Natural Bertekstur Tanpa Kilau',
+      description: 'Tekstur acak natural bervolume menggunakan matte clay tanpa efek mengkilap.',
+      tag: 'Casual Everyday',
+      icon: '✨',
+    },
+  ];
+
+  const handleSelectServiceWithCatalog = (svc: ServiceItem) => {
+    setSelectedServiceId(svc.id);
+    const cat = svc.category.toUpperCase();
+    if (cat.includes('COLOR')) setCatalogCategoryFilter('HAIR COLOR');
+    else if (cat.includes('PERM')) setCatalogCategoryFilter('HAIR PERMING');
+    else if (cat.includes('STYLE')) setCatalogCategoryFilter('STYLING');
+    else setCatalogCategoryFilter('HAIRCUT');
+    setShowStyleModal(true);
+  };
+
+  const handleApplySpecificStyle = (style: typeof SPECIFIC_STYLES[0]) => {
+    setSelectedSpecificStyle(style);
+    // Tambahkan catatan model ke kolom catatan
+    setNotes((prev) => {
+      const cleanPrev = prev.replace(/\[Model:.*?\]/g, '').trim();
+      return cleanPrev ? `${cleanPrev} [Model: ${style.name}]` : `[Model: ${style.name}]`;
+    });
+    // Sesuaikan pilihan layanan jika diperlukan
+    const matchingSvc = activeServices.find((s) => s.category.toUpperCase() === style.category);
+    if (matchingSvc) {
+      setSelectedServiceId(matchingSvc.id);
+    }
+    setShowStyleModal(false);
+    const el = document.getElementById('formulir-reservasi');
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
   };
 
   const videoUrl = siteMedia?.hero_video_url || '/assets/cendrawasih_showcase.mp4';
@@ -732,6 +953,16 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                 ))}
               </div>
 
+              {/* Tombol Buka Katalog Model Rambut & Garis */}
+              <button
+                type="button"
+                onClick={() => setShowStyleModal(true)}
+                className="btn-tactile inline-flex items-center gap-1.5 rounded-lg border border-[#DCA842]/50 bg-[#DCA842]/10 px-3 py-1.5 text-xs font-bold text-[#DCA842] hover:bg-[#DCA842]/20 cursor-pointer"
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                <span>Katalog Model &amp; Garis</span>
+              </button>
+
               {/* Layout Switcher (Card Grid vs List View) */}
               <div className="inline-flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
                 <button
@@ -952,6 +1183,16 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                 ))}
               </div>
 
+              {/* Tombol Buka Katalog Model Rambut & Garis */}
+              <button
+                type="button"
+                onClick={() => setShowStyleModal(true)}
+                className="btn-tactile inline-flex items-center gap-1.5 rounded-lg border border-[#DCA842]/50 bg-[#DCA842]/10 px-3 py-1.5 text-xs font-bold text-[#DCA842] hover:bg-[#DCA842]/20 cursor-pointer"
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                <span>Katalog Model &amp; Garis</span>
+              </button>
+
               {/* Layout Switcher (Card Grid vs List View) */}
               <div className="inline-flex rounded-lg bg-zinc-100 dark:bg-zinc-800 p-1">
                 <button
@@ -1034,7 +1275,7 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                     {/* Card Details & Select Handler */}
                     <button
                       type="button"
-                      onClick={() => setSelectedServiceId(svc.id)}
+                      onClick={() => handleSelectServiceWithCatalog(svc)}
                       className="w-full p-3.5 text-left flex items-center justify-between gap-3 cursor-pointer"
                     >
                       <div className="min-w-0">
@@ -1115,7 +1356,7 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                       </span>
                       <button
                         type="button"
-                        onClick={() => setSelectedServiceId(svc.id)}
+                        onClick={() => handleSelectServiceWithCatalog(svc)}
                         className={`btn-tactile inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold cursor-pointer transition-colors ${
                           isSelected
                             ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-zinc-950'
@@ -1285,6 +1526,54 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                       </div>
                     );
                   })()}
+                </div>
+
+                {/* Pilihan Model Rambut & Seni Garis Bertingkat */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Gaya &amp; Model Rambut Pilihan
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowStyleModal(true)}
+                      className="text-[11px] font-bold text-[#C5922E] dark:text-[#DCA842] hover:underline cursor-pointer"
+                    >
+                      {selectedSpecificStyle ? 'Ganti Gaya' : '+ Pilih Model'}
+                    </button>
+                  </div>
+                  {selectedSpecificStyle ? (
+                    <div className="flex items-center justify-between rounded-xl border border-[#DCA842]/40 bg-[#DCA842]/10 p-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{selectedSpecificStyle.icon}</span>
+                        <div>
+                          <p className="text-xs font-bold text-zinc-900 dark:text-white">
+                            {selectedSpecificStyle.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {selectedSpecificStyle.subname} · <span className="text-[#DCA842] font-semibold">{selectedSpecificStyle.tag}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSpecificStyle(null)}
+                        className="text-xs text-zinc-400 hover:text-red-400 cursor-pointer p-1"
+                        title="Hapus pilihan gaya"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowStyleModal(true)}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/40 py-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:border-[#DCA842] hover:text-[#DCA842] transition-colors cursor-pointer"
+                    >
+                      <Scissors className="h-4 w-4 text-[#DCA842]" />
+                      <span>Pilih Jenis Potongan, Garis Rambut, atau Warna</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* 3. Layanan */}
@@ -1767,6 +2056,110 @@ export const CustomerBookingPortal: React.FC<CustomerBookingPortalProps> = ({
                 referrerPolicy="no-referrer"
                 className="w-full h-auto rounded-lg object-contain"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KATALOG MODEL & SENI GARIS RAMBUT BERTINGKAT */}
+      {showStyleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-zinc-800 bg-[#09090B] text-white shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 bg-zinc-950">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#DCA842]/15 text-[#DCA842]">
+                  <Scissors className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Katalog Model Rambut &amp; Seni Garis</h3>
+                  <p className="text-xs text-zinc-400">Pilih model rambut, aksen garis (hair tattoo), warna, atau perming</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStyleModal(false)}
+                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Category Filter Tabs */}
+            <div className="flex border-b border-zinc-800 px-6 py-2.5 gap-2 overflow-x-auto bg-zinc-900/60 shrink-0">
+              {(['HAIRCUT', 'HAIR COLOR', 'HAIR PERMING', 'STYLING'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCatalogCategoryFilter(cat)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    catalogCategoryFilter === cat
+                      ? 'bg-[#DCA842] text-zinc-950 shadow-sm'
+                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                  }`}
+                >
+                  {cat === 'HAIRCUT' ? '✂️ Potongan & Seni Garis' :
+                   cat === 'HAIR COLOR' ? '🎨 Pewarnaan Rambut' :
+                   cat === 'HAIR PERMING' ? '🌀 Hair Perming' : '✨ Styling & Treatment'}
+                </button>
+              ))}
+            </div>
+
+            {/* Catalog Grid */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {SPECIFIC_STYLES.filter((s) => s.category === catalogCategoryFilter).map((style) => {
+                const isChosen = selectedSpecificStyle?.id === style.id;
+                return (
+                  <div
+                    key={style.id}
+                    className={`rounded-xl border p-4 flex flex-col justify-between transition-all ${
+                      isChosen
+                        ? 'border-[#DCA842] bg-[#DCA842]/10 ring-1 ring-[#DCA842]'
+                        : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-900'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{style.icon}</span>
+                          <span className="text-sm font-bold text-white">{style.name}</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-[#DCA842] border border-zinc-700">
+                          {style.tag}
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-zinc-300">{style.subname}</p>
+                      <p className="mt-1.5 text-xs text-zinc-400 leading-relaxed">{style.description}</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-500">Tersedia di semua cabang</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplySpecificStyle(style)}
+                        className={`btn-tactile px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                          isChosen
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-[#DCA842] text-zinc-950 hover:bg-[#C5922E]'
+                        }`}
+                      >
+                        {isChosen ? '✓ Terpilih' : 'Pilih Model Ini'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-zinc-800 px-6 py-3 bg-zinc-950 flex items-center justify-between text-xs text-zinc-400">
+              <span>Model pilihan Anda akan otomatis diteruskan ke barber saat jadwal tiba.</span>
+              <button
+                type="button"
+                onClick={() => setShowStyleModal(false)}
+                className="px-4 py-1.5 rounded-lg bg-zinc-800 text-white hover:bg-zinc-700 cursor-pointer font-semibold"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>
