@@ -538,6 +538,33 @@ export const ExcelPeriodReport: React.FC<ExcelPeriodReportProps> = ({
              TAB 1: REKAP CAPSTER (UDIN, ATTA, NOEL, ASWAR, ACEL)
              ========================================================= */
           <div className="p-4 space-y-8 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+            {/* RINGKASAN GRAND TOTAL SEMUA CAPSTER (DIPINDAHKAN KE ATAS SESUAI PERMINTAAN) */}
+            <div className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 p-5 shadow-sm">
+              <h3 className="font-bold text-sm text-[#09090B] dark:text-white uppercase mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4 text-[#C5922E]" />
+                <span>Ringkasan Laba Kotor Seluruh Capster (Bulan {monthValue})</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                {TEMPLATE_CAPSTERS.map((c) => (
+                  <div key={c.capsterName} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+                    <p className="text-xs text-zinc-500 font-semibold uppercase">Capster {c.capsterName}</p>
+                    <p className="font-mono text-base font-bold text-[#09090B] dark:text-white mt-1">
+                      {formatRupiah(c.totalRpK.total * 1000)}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">{c.totalQty.total} Total Transaksi</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-3.5 rounded-lg bg-[#09090B] text-white flex flex-wrap items-center justify-between gap-2 border border-[#27272A]">
+                <span className="font-bold text-xs uppercase tracking-wide">
+                  TOTAL AKUMULASI PENDAPATAN JASA &amp; PRODUK SELURUH CAPSTER:
+                </span>
+                <span className="font-mono text-lg font-extrabold text-[#DCA842]">
+                  {formatRupiah(totalGrossCapsters)}
+                </span>
+              </div>
+            </div>
+
             {TEMPLATE_CAPSTERS.filter(
               (c) => selectedCapsterTab === 'ALL' || c.capsterName === selectedCapsterTab
             ).map((cTable) => (
@@ -706,33 +733,6 @@ export const ExcelPeriodReport: React.FC<ExcelPeriodReportProps> = ({
                 </div>
               </div>
             ))}
-
-            {/* RINGKASAN GRAND TOTAL SEMUA CAPSTER */}
-            <div className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 p-5">
-              <h3 className="font-bold text-sm text-[#09090B] dark:text-white uppercase mb-3 flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#C5922E]" />
-                <span>Ringkasan Laba Kotor Seluruh Capster (Bulan {monthValue})</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                {TEMPLATE_CAPSTERS.map((c) => (
-                  <div key={c.capsterName} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
-                    <p className="text-xs text-zinc-500 font-semibold uppercase">Capster {c.capsterName}</p>
-                    <p className="font-mono text-base font-bold text-[#09090B] dark:text-white mt-1">
-                      {formatRupiah(c.totalRpK.total * 1000)}
-                    </p>
-                    <p className="text-[10px] text-zinc-400 mt-0.5">{c.totalQty.total} Total Transaksi</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 p-3.5 rounded-lg bg-[#09090B] text-white flex flex-wrap items-center justify-between gap-2 border border-[#27272A]">
-                <span className="font-bold text-xs uppercase tracking-wide">
-                  TOTAL AKUMULASI PENDAPATAN JASA &amp; PRODUK SELURUH CAPSTER:
-                </span>
-                <span className="font-mono text-lg font-extrabold text-[#DCA842]">
-                  {formatRupiah(totalGrossCapsters)}
-                </span>
-              </div>
-            </div>
           </div>
         ) : sheetView === 'absensi' ? (
           /* =========================================================

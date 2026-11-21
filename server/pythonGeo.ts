@@ -14,7 +14,8 @@ interface VerifyGeoInput {
 export function verifyLocationWithPython(input: VerifyGeoInput): Promise<GeoVerificationResult> {
   return new Promise((resolve) => {
     const scriptPath = path.resolve(process.cwd(), 'python/geo_verifier.py');
-    const proc = spawn('python3', [scriptPath], {
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pythonCmd, [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

@@ -58,8 +58,8 @@ export const BarberSalarySchemeModal: React.FC<BarberSalarySchemeModalProps> = (
   const simTotal = baseSalary + totalCommission + simBonus;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-5 backdrop-blur-md overflow-y-auto animate-fadeIn">
-      <div className="relative w-full max-w-4xl my-6 rounded-3xl bg-[#09090B] border-2 border-[#DCA842]/60 text-white shadow-[0_0_50px_rgba(220,168,66,0.25)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-5 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto my-auto rounded-3xl bg-[#09090B] border-2 border-[#DCA842]/60 text-white shadow-[0_0_50px_rgba(220,168,66,0.25)]">
         {/* Glow Effects */}
         <div className="pointer-events-none absolute -top-20 -left-20 h-64 w-64 rounded-full bg-[#C5922E]/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-[#DCA842]/20 blur-3xl" />

@@ -8,11 +8,12 @@ branch operational hours.
 """
 
 import base64
+import io
 import json
 import math
-import subprocess
 import sys
 from datetime import datetime, timezone
+from PIL import Image, ImageOps
 
 
 def decode_base64_image(data_url: str) -> bytes:
@@ -23,15 +24,13 @@ def decode_base64_image(data_url: str) -> bytes:
     else:
         b64 = data_url
     raw_bytes = base64.b64decode(b64)
-    proc = subprocess.run(
-        ["convert", "-", "-auto-orient", "-resize", "64x64!", "-depth", "8", "rgb:-"],
-        input=raw_bytes,
-        capture_output=True,
-        timeout=8,
-    )
-    if proc.returncode != 0 or len(proc.stdout) != 64 * 64 * 3:
-        raise ValueError(f"Gagal memproses gambar: {proc.stderr.decode(errors='ignore') or len(proc.stdout)}")
-    return proc.stdout
+    try:
+        img = Image.open(io.BytesIO(raw_bytes))
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB").resize((64, 64), Image.Resampling.BILINEAR)
+        return img.tobytes()
+    except Exception as exc:
+        raise ValueError(f"Gagal memproses gambar dengan PIL: {exc}")
 
 
 def extract_features(rgb_bytes: bytes) -> dict:

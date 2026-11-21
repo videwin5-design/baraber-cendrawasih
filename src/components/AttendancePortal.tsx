@@ -301,8 +301,16 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
         }),
       });
       const data = await res.json();
-      if (data.verification) setFaceResult(data.verification);
-      else setErrorMessage(data.error || 'Verifikasi wajah gagal');
+      if (data.verification) {
+        setFaceResult(data.verification);
+        if (!data.verification.face_detected) {
+          setErrorMessage('⚠️ Wajah tidak terdeteksi jelas pada kamera. Pastikan pencahayaan cukup dan wajah terlihat utuh.');
+        } else if (!data.verification.face_match) {
+          setErrorMessage(`❌ Wajah TIDAK COCOK dengan profil karyawan (${data.verification.similarity_percent}% < 65%). Presensi DITOLAK demi keamanan!`);
+        }
+      } else {
+        setErrorMessage(data.error || 'Verifikasi wajah gagal');
+      }
     } catch {
       setErrorMessage('Gagal menghubungi engine verifikasi wajah');
     } finally {
@@ -354,6 +362,10 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
     if (!activeEmployee || !activeBranch) return;
     if (!geoCoords || !geoResult?.within_radius) { setErrorMessage('Silakan selesaikan verifikasi lokasi GPS terlebih dahulu.'); return; }
     if (!liveSnapshot) { setErrorMessage('Silakan ambil foto wajah selfie terlebih dahulu.'); return; }
+    if (!faceResult || !faceResult.face_detected || !faceResult.face_match) {
+      setErrorMessage(`❌ Presensi Ditolak: Wajah Anda (${faceResult?.similarity_percent || 0}%) tidak cocok dengan foto profil karyawan. Hanya karyawan bersangkutan yang dapat melakukan presensi!`);
+      return;
+    }
     setSubmitting(true); setErrorMessage(''); setSuccessMessage('');
     try {
       const res = await fetch('/api/attendance/checkin', {
@@ -378,6 +390,10 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
   const handleCheckOut = async () => {
     if (!activeEmployee || !activeBranch) return;
     if (!geoCoords || !geoResult?.within_radius) { setErrorMessage('Silakan cek lokasi Anda di barbershop sebelum presensi pulang.'); return; }
+    if (liveSnapshot && faceResult && (!faceResult.face_detected || !faceResult.face_match)) {
+      setErrorMessage(`❌ Presensi Pulang Ditolak: Wajah tidak cocok dengan profil karyawan.`);
+      return;
+    }
     setSubmitting(true); setErrorMessage(''); setSuccessMessage('');
     try {
       const res = await fetch('/api/attendance/checkout', {
@@ -398,7 +414,7 @@ export const AttendancePortal: React.FC<AttendancePortalProps> = ({
 
   const isIdentityReady = Boolean(activeEmployee);
   const isLocationReady = Boolean(geoResult?.within_radius);
-  const isFaceReady = Boolean(liveSnapshot && (faceResult?.face_match ?? true));
+  const isFaceReady = Boolean(liveSnapshot && faceResult && faceResult.face_detected && faceResult.face_match);
   const canCheckIn = isIdentityReady && isLocationReady && isFaceReady && !todayRecord;
   const canCheckOut = isIdentityReady && isLocationReady && Boolean(todayRecord) && !todayRecord?.check_out_time;
   const workDuration = todayRecord ? calcWorkDuration(todayRecord.check_in_time ?? '', todayRecord.check_out_time) : '-';

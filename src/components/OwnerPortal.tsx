@@ -62,6 +62,7 @@ import {BarberSalarySchemeModal} from './BarberSalarySchemeModal.tsx';
 import {ActionConfirmModal, ActionFeedbackModal} from './AppActionModal.tsx';
 import {ExcelPeriodReport} from './ExcelPeriodReport.tsx';
 import {OwnerAnalyticsCharts} from './OwnerAnalyticsCharts.tsx';
+import {OwnerPerformanceMatrixTable} from './OwnerPerformanceMatrixTable.tsx';
 
 interface OwnerPortalProps {
   branches: Branch[];
@@ -1455,6 +1456,13 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
               <p className="mt-1 text-xs text-zinc-300">Setelah dikurangi komisi barber</p>
             </div>
           </div>
+
+          {/* TABEL SPREADSHEET DETAIL KINERJA BARBER (FORMAT EXCEL RESMI CENDRAWASIH) */}
+          <OwnerPerformanceMatrixTable
+            transactions={transactions}
+            employees={employees}
+            initialMonth={reportDate ? reportDate.slice(0, 7) : '2026-10'}
+          />
 
           {/* Interactive Bar Chart & Pie Chart for Owner */}
           <OwnerAnalyticsCharts
@@ -3018,10 +3026,10 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
       {/* MODAL: BRANCH FORM */}
       {branchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-3 sm:p-4 backdrop-blur-xs">
           <form
             onSubmit={saveBranch}
-            className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="font-display text-base font-bold text-[#09090B] dark:text-white">
@@ -3196,10 +3204,10 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
       {/* MODAL: EMPLOYEE FORM */}
       {empModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-3 sm:p-4 backdrop-blur-xs">
           <form
             onSubmit={saveEmployee}
-            className="w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="font-display text-base font-bold text-[#09090B] dark:text-white">
@@ -3651,10 +3659,10 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
       {/* MODAL: SERVICE FORM */}
       {serviceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-3 sm:p-4 backdrop-blur-xs">
           <form
             onSubmit={saveService}
-            className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="font-display text-base font-bold text-[#09090B] dark:text-white">
@@ -3795,10 +3803,10 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
       {/* MODAL: CATEGORY FORM */}
       {catModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-3 sm:p-4 backdrop-blur-xs">
           <form
             onSubmit={saveCat}
-            className="w-full max-w-sm rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-sm max-h-[92vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="font-display text-base font-bold text-[#09090B] dark:text-white">
@@ -3896,10 +3904,10 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
 
       {/* MODAL: POST / PROMO FORM */}
       {postModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 p-3 sm:p-4 backdrop-blur-xs">
           <form
             onSubmit={savePost}
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
               <h3 className="font-display text-base font-bold text-[#09090B] dark:text-white">

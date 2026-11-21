@@ -17,7 +17,8 @@ interface VerifyFaceInput {
 export function verifyFaceWithPython(input: VerifyFaceInput): Promise<FaceVerificationResult> {
   return new Promise((resolve) => {
     const scriptPath = path.resolve(process.cwd(), 'python/face_verifier.py');
-    const proc = spawn('python3', [scriptPath], {
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pythonCmd, [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

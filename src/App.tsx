@@ -134,6 +134,29 @@ export default function App() {
     }
   }, [appState.employees, currentUser]);
 
+  // Otomatis logout jika user membuka aplikasi lain, meminimalkan browser, atau beralih tab
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User membuka aplikasi lain di HP/laptop atau beralih tab
+        setCurrentUser(null);
+        setActiveView('pelanggan');
+        try {
+          localStorage.removeItem('cendrawasih_user');
+        } catch {
+          // Ignore
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentUser]);
+
   // ATURAN RBAC: Hanya Owner yang boleh mengakses halaman 'pelanggan' (public) saat login.
   // Role lain (kasir/karyawan) tidak boleh dan harus logout terlebih dahulu.
   useEffect(() => {
