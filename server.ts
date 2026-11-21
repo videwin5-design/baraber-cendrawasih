@@ -4,6 +4,8 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import {fileURLToPath} from 'url';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import {WebSocket, WebSocketServer} from 'ws';
 import {
   db,
@@ -18,6 +20,13 @@ import {
 import {verifyLocationWithPython} from './server/pythonGeo.ts';
 import {verifyFaceWithPython} from './server/pythonFace.ts';
 import {cekRole} from './server/middleware/cekRole.ts';
+import {
+  handleMandiriQRISWebhook,
+  sendWhatsAppNotification,
+  formatMessageTemplate,
+  getSetting,
+  setSetting,
+} from './server/integrations.ts';
 import type {Branch, Employee, NotificationItem, PostItem, ServiceItem, TransactionItem} from './src/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,7 +39,35 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 initDatabase();
 
 const app = express();
-app.use(express.json({limit: '20mb'}));
+
+// ==========================================
+// SECURITY HARDENING (HELMET & RATE LIMITING)
+// ==========================================
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Memungkinkan Vite HMR, WebSocket, dan WebCam
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// Global API Rate Limiter
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 2000, // Maksimal 2000 requests per 15 menit per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {error: 'Terlalu banyak permintaan ke server, silakan coba lagi beberapa saat.'},
+});
+app.use('/api/', globalApiLimiter);
+
+// Auth login rate limiter untuk proteksi brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  message: {error: 'Terlalu banyak percobaan masuk, silakan coba lagi setelah 15 menit.'},
+});
+
+app.use(express.json({limit: '25mb'}));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 const server = http.createServer(app);
@@ -81,7 +118,7 @@ app.get('/api/state', (_req, res) => {
   res.json(getFullState());
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
   const {employeeId, pin} = req.body as {employeeId?: string; pin?: string};
   if (!employeeId || !pin) {
     res.status(400).json({error: 'Pilih akun dan masukkan PIN'});
@@ -752,6 +789,23 @@ app.post('/api/transactions', (req, res) => {
   broadcastEvent('notification:new', notification);
   broadcastFullSync('transaction:created');
 
+  // Kirim notifikasi WhatsApp struk digital ke pelanggan jika nomor HP terisi
+  if (customer_phone && customer_phone.trim().length >= 9) {
+    const waTemplate = getSetting(
+      'whatsapp_template_trx',
+      'Terima kasih Kak {nama_pelanggan}! Pembayaran sebesar Rp {total} untuk invoice {invoice} di Cendrawasih Barbershop ({cabang}) telah berhasil diterima via {metode_bayar}. Layanan oleh: {barber}. Sampai jumpa kembali!'
+    );
+    const waText = formatMessageTemplate(waTemplate, {
+      nama_pelanggan: customer_name.trim(),
+      invoice: invoiceNo,
+      total: totalAmount.toLocaleString('id-ID'),
+      cabang: branch.name,
+      metode_bayar: payment_method || 'Tunai',
+      barber: barber.name,
+    });
+    void sendWhatsAppNotification({to: customer_phone.trim(), message: waText});
+  }
+
   res.status(201).json({id, invoice_no: invoiceNo, total_amount: totalAmount, barber_commission: barberCommission, notification});
 });
 
@@ -882,6 +936,25 @@ app.post('/api/bookings', (req, res) => {
 
   broadcastEvent('notification:new', notification);
   broadcastFullSync('booking:created');
+
+  // Kirim notifikasi WhatsApp otomatis ke pelanggan
+  if (booking.customer_phone && booking.customer_phone.length >= 9) {
+    const waTemplate = getSetting(
+      'whatsapp_template_booking',
+      'Halo Kak {nama_pelanggan}! Booking Anda di Cendrawasih Barbershop telah diterima. Kode: {kode_booking}, Tanggal: {tanggal} {jam}, Layanan: {layanan}, Barber: {barber}, Cabang: {cabang}. Mohon hadir 5 menit sebelum jadwal. Terima kasih!'
+    );
+    const waText = formatMessageTemplate(waTemplate, {
+      nama_pelanggan: booking.customer_name,
+      kode_booking: bookingCode,
+      tanggal: booking_date,
+      jam: booking_time,
+      layanan: service.name,
+      barber: barber.name,
+      cabang: branch.name,
+    });
+    void sendWhatsAppNotification({to: booking.customer_phone, message: waText});
+  }
+
   res.status(201).json(booking);
 });
 
@@ -1441,6 +1514,58 @@ app.put('/api/settings', cekRole('owner'), (req, res) => {
     res.json({ok: true});
   } catch {
     res.status(500).json({error: 'Gagal memperbarui pengaturan aplikasi'});
+  }
+});
+
+// ==========================================
+// MANDIRI QRIS DYNAMIC WEBHOOK & INTEGRATIONS
+// ==========================================
+
+// Webhook receiver for Mandiri QRIS payments
+app.post('/api/webhooks/mandiri-qris', async (req, res) => {
+  await handleMandiriQRISWebhook(req, res, broadcastEvent);
+});
+
+// Test Mandiri QRIS Webhook simulation (Owner only)
+app.post('/api/payments/mandiri/test-webhook', cekRole('owner'), async (req, res) => {
+  try {
+    const {amount = 85000, reference_id = `TEST-${Date.now()}`, customer_name = 'Test Mandiri QRIS'} = req.body;
+    const simulatedReq = {
+      headers: req.headers,
+      body: {
+        merchant_id: getSetting('mandiri_qris_merchant_id', 'CW-MANDIRI-01'),
+        reference_id,
+        amount,
+        transaction_status: 'SUCCESS',
+        payment_type: 'QRIS_MANDIRI',
+        customer_name,
+        transaction_time: new Date().toISOString(),
+      },
+    } as express.Request;
+
+    await handleMandiriQRISWebhook(simulatedReq, res, broadcastEvent);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({error: `Gagal simulasi webhook: ${errorMsg}`});
+  }
+});
+
+// Test send WhatsApp notification (Owner only)
+app.post('/api/whatsapp/send-test', cekRole('owner'), async (req, res) => {
+  try {
+    const {phone, message} = req.body;
+    if (!phone || !message) {
+      res.status(400).json({error: 'Nomor telepon tujuan dan pesan wajib disertakan'});
+      return;
+    }
+    const result = await sendWhatsAppNotification({
+      to: String(phone),
+      message: String(message),
+    });
+    res.json(result);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({error: `Gagal kirim pesan WhatsApp: ${errorMsg}`});
   }
 });
 

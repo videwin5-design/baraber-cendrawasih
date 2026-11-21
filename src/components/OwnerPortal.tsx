@@ -1077,15 +1077,20 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
     setMediaFeedback({type: 'success', text: 'Video showcase dikembalikan ke video bawaan Cendrawasih.'});
   };
 
-  const tabs: {id: OwnerTab; label: string; icon: React.ReactNode}[] = [
-    {id: 'keuangan', label: 'Laporan & Grafik', icon: <FileSpreadsheet className="h-4 w-4" />},
-    {id: 'excel', label: 'Laporan Excel', icon: <Table2 className="h-4 w-4" />},
-    {id: 'konten', label: 'Video, Postingan & Promo', icon: <Megaphone className="h-4 w-4" />},
-    {id: 'cabang', label: 'Cabang', icon: <Building2 className="h-4 w-4" />},
-    {id: 'karyawan', label: 'Karyawan', icon: <Users className="h-4 w-4" />},
-    {id: 'gaji', label: 'Gaji', icon: <Wallet className="h-4 w-4" />},
-    {id: 'jadwal', label: 'Jadwal', icon: <CalendarClock className="h-4 w-4" />},
-    {id: 'presensi', label: 'Presensi & Katalog', icon: <MapPin className="h-4 w-4" />},
+  const tabs: {id: OwnerTab; label: string; icon: React.ReactNode; group: string}[] = [
+    // Grup: Laporan & Keuangan
+    {id: 'keuangan', label: 'Dashboard', icon: <TrendingUp className="h-4 w-4" />, group: 'Laporan'},
+    {id: 'transaksi', label: 'Transaksi', icon: <Receipt className="h-4 w-4" />, group: 'Laporan'},
+    {id: 'excel', label: 'Laporan Excel', icon: <Table2 className="h-4 w-4" />, group: 'Laporan'},
+    // Grup: Manajemen SDM
+    {id: 'presensi', label: 'Presensi', icon: <ScanFace className="h-4 w-4" />, group: 'SDM'},
+    {id: 'karyawan', label: 'Karyawan', icon: <Users className="h-4 w-4" />, group: 'SDM'},
+    {id: 'gaji', label: 'Gaji & Komisi', icon: <Wallet className="h-4 w-4" />, group: 'SDM'},
+    // Grup: Operasional
+    {id: 'layanan', label: 'Layanan', icon: <Scissors className="h-4 w-4" />, group: 'Operasional'},
+    {id: 'cabang', label: 'Cabang', icon: <MapPin className="h-4 w-4" />, group: 'Operasional'},
+    {id: 'jadwal', label: 'Jadwal', icon: <CalendarClock className="h-4 w-4" />, group: 'Operasional'},
+    {id: 'konten', label: 'Konten & Promo', icon: <Megaphone className="h-4 w-4" />, group: 'Operasional'},
   ];
 
   const monthSalaries = salaries.filter((s) => s.period_month === salaryMonth);
@@ -1128,7 +1133,70 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({
   const trxAvgTicket = filteredTransactions.length > 0 ? Math.round(trxTotalRevenue / filteredTransactions.length) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* ===== TAB BAR OWNER — Profesional, Responsif, Grouped ===== */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2 shadow-sm">
+        {/* Group labels visible on md+ */}
+        <div className="hidden md:flex gap-1 flex-wrap">
+          {/* Laporan Group */}
+          <div className="flex flex-col gap-0.5 mr-3">
+            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Laporan</span>
+            <div className="flex gap-1">
+              {tabs.filter(t => t.group === 'Laporan').map(tab => (
+                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  }`}>
+                  {tab.icon}<span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-px bg-zinc-200 dark:bg-zinc-700 mx-1 self-stretch" />
+          {/* SDM Group */}
+          <div className="flex flex-col gap-0.5 mr-3">
+            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Manajemen SDM</span>
+            <div className="flex gap-1">
+              {tabs.filter(t => t.group === 'SDM').map(tab => (
+                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  }`}>
+                  {tab.icon}<span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-px bg-zinc-200 dark:bg-zinc-700 mx-1 self-stretch" />
+          {/* Operasional Group */}
+          <div className="flex flex-col gap-0.5">
+            <span className="px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Operasional</span>
+            <div className="flex gap-1">
+              {tabs.filter(t => t.group === 'Operasional').map(tab => (
+                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  }`}>
+                  {tab.icon}<span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: scrollable flat tab bar */}
+        <div className="flex md:hidden overflow-x-auto gap-1 pb-0.5 no-scrollbar">
+          {tabs.map(tab => (
+            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id as OwnerTab)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === tab.id ? 'bg-[#DCA842] text-zinc-950 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }`}>
+              {tab.icon}<span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* TAB: WEEKLY & MONTHLY EXCEL REPORT */}
       {activeTab === 'excel' && (
         <ExcelPeriodReport

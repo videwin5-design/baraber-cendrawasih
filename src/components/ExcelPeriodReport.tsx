@@ -585,7 +585,7 @@ export const ExcelPeriodReport: React.FC<ExcelPeriodReportProps> = ({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-[11px] font-mono tabular-nums text-zinc-900">
+                  <table className="w-full border-collapse text-[10px] sm:text-[11px] md:text-xs font-mono tabular-nums text-zinc-900">
                     <thead>
                       {/* Row 1: Merged Category Groups */}
                       <tr>

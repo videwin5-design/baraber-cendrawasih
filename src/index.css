@@ -76,6 +76,15 @@
     animation: rgb-shadow-rotate 1.5s ease-in-out infinite;
     transform: translateY(-3px);
   }
+
+  /* Utilities for responsive tables and navigation */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -493,8 +493,19 @@ export const OwnerPerformanceMatrixTable: React.FC<OwnerPerformanceMatrixTablePr
 
       {/* SPREADSHEET VIEWPORT */}
       <div className="rounded-2xl border-2 border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 overflow-hidden shadow-xl">
+        {/* Indikator Geser Horizontal untuk Layar HP / Tablet */}
+        <div className="lg:hidden px-4 py-2 bg-amber-50 dark:bg-amber-950/40 text-xs font-semibold text-amber-900 dark:text-amber-300 border-b border-amber-200 dark:border-amber-900 flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <span>👉</span>
+            <span>Geser tabel ke samping untuk melihat seluruh 17 kolom</span>
+          </span>
+          <span className="rounded bg-amber-200 dark:bg-amber-900/60 px-2 py-0.5 text-[10px] font-mono font-bold">
+            Scroll ⇄
+          </span>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse font-mono text-[11px] tabular-nums text-zinc-900 select-none">
+          <table className="w-full border-collapse font-mono text-[10px] sm:text-[11px] md:text-xs tabular-nums text-zinc-900 select-none">
             {/* THEAD SPESIAL DENGAN WARNA EXCEL ASLI */}
             <thead>
               <tr className="border-b border-black text-center font-bold">

@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {AppSidebar} from './components/AppSidebar.tsx';
+import {MobileSidebar} from './components/MobileSidebar.tsx';
+import {CustomerChatbot} from './components/CustomerChatbot.tsx';
 import {ActionConfirmModal, ActionFeedbackModal} from './components/AppActionModal.tsx';
 import {AttendancePortal} from './components/AttendancePortal.tsx';
 import {CashierPortal} from './components/CashierPortal.tsx';
@@ -86,6 +88,7 @@ export default function App() {
 
   // Sidebar toggle state (Default open di desktop)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -289,7 +292,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex bg-zinc-50 text-zinc-950 dark:bg-[#09090B] dark:text-zinc-100 transition-colors">
-      {/* 1. SIDEBAR NAVIGASI (Aktif saat staf login) */}
+      {/* Mobile Sidebar (semua role, termasuk public) */}
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        currentUser={currentUser}
+        branches={appState.branches}
+        activeView={activeView}
+        onSelectView={(v) => setActiveView(v)}
+        onLogout={handleLogout}
+        onLoginClick={() => setLoginOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        appName={appState.appSettings?.app_name || 'Barbershop Cenderawasih'}
+        appVersion={appState.appSettings?.app_version || 'v4.0.1'}
+      />
+
+      {/* 1. SIDEBAR NAVIGASI Desktop (Aktif saat staf login) */}
       {currentUser && (
         <AppSidebar
           currentUser={currentUser}
@@ -336,11 +355,21 @@ export default function App() {
             <div className="flex items-center justify-between gap-4">
               {/* Sisi Kiri: Tombol Hamburger & Breadcrumb */}
               <div className="flex items-center gap-3">
+                {/* Desktop: toggle sidebar */}
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen((v) => !v)}
                   aria-label="Toggle Sidebar Menu"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shadow-xs"
+                  className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shadow-xs"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                {/* Mobile: buka MobileSidebar */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  aria-label="Buka Menu Mobile"
+                  className="inline-flex lg:hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shadow-xs"
                 >
                   <Menu className="h-5 w-5" />
                 </button>
@@ -414,6 +443,16 @@ export default function App() {
           // Header Pengunjung Publik (Saat Tanpa Login)
           <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 dark:border-zinc-800 dark:bg-[#09090B]/95 backdrop-blur-md transition-colors">
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 py-2.5">
+              {/* Mobile Hamburger */}
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                aria-label="Buka Menu"
+                className="flex md:hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 cursor-pointer"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => setLoginOpen(true)}
@@ -447,11 +486,12 @@ export default function App() {
               </nav>
 
               <div className="flex items-center gap-2">
+                {/* Theme Toggle — hanya tampil di md ke atas; di mobile jadi floating button */}
                 <button
                   type="button"
                   onClick={toggleTheme}
                   title="Ganti Tema"
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300"
+                  className="hidden md:flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300"
                 >
                   {theme === 'dark' ? (
                     <Sun className="h-4 w-4 text-[#DCA842]" />
@@ -460,10 +500,11 @@ export default function App() {
                   )}
                 </button>
 
+                {/* Masuk Staf — disembunyikan di mobile */}
                 <button
                   type="button"
                   onClick={() => setLoginOpen(true)}
-                  className="rounded-xl bg-[#09090B] dark:bg-[#DCA842] text-white dark:text-zinc-950 px-4 py-2 text-xs font-bold shadow-sm transition-all hover:scale-105 cursor-pointer"
+                  className="hidden sm:flex rounded-xl bg-[#09090B] dark:bg-[#DCA842] text-white dark:text-zinc-950 px-4 py-2 text-xs font-bold shadow-sm transition-all hover:scale-105 cursor-pointer"
                 >
                   Masuk Staf
                 </button>
@@ -674,6 +715,26 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      {/* FLOATING THEME TOGGLE — Hanya di mobile, di halaman publik */}
+      {!currentUser && (
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}
+          className="fixed bottom-24 left-4 z-40 flex md:hidden h-11 w-11 items-center justify-center rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg text-zinc-700 dark:text-zinc-200 cursor-pointer"
+        >
+          {theme === 'dark' ? <Sun className="h-5 w-5 text-[#DCA842]" /> : <Moon className="h-5 w-5" />}
+        </button>
+      )}
+
+      {/* CUSTOMER CHATBOT — Hanya di halaman publik */}
+      {(!currentUser || activeView === 'pelanggan') && (
+        <CustomerChatbot
+          branches={appState.branches}
+          services={appState.services}
+        />
+      )}
 
       {/* MODAL LOGIN STAF */}
       {loginOpen && (

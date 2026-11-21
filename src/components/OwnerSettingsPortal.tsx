@@ -45,7 +45,7 @@ export interface OwnerSettingsPortalProps {
   onRefreshState: () => void;
 }
 
-type SettingTab = 'hak_akses' | 'tampilan' | 'gaji_mutasi' | 'versi_aplikasi' | 'keamanan';
+type SettingTab = 'hak_akses' | 'tampilan' | 'gaji_mutasi' | 'versi_aplikasi' | 'keamanan' | 'integrasi';
 
 export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
   currentUser,
@@ -97,6 +97,29 @@ export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
   const [faceMatchMin, setFaceMatchMin] = useState(appSettings.face_match_min_percent || '80');
   const [toleranceMinutes, setToleranceMinutes] = useState(appSettings.tolerance_late_minutes || '15');
   const [newOwnerPin, setNewOwnerPin] = useState('');
+
+  // 6. STATE: INTEGRASI MANDIRI QRIS & WHATSAPP API (DINAMIS OWNER)
+  const [mandiriQrisEnabled, setMandiriQrisEnabled] = useState(appSettings.mandiri_qris_enabled !== '0');
+  const [mandiriMerchantId, setMandiriMerchantId] = useState(appSettings.mandiri_qris_merchant_id || 'CW-MANDIRI-NABIRE-01');
+  const [mandiriClientId, setMandiriClientId] = useState(appSettings.mandiri_qris_client_id || '');
+  const [mandiriWebhookSecret, setMandiriWebhookSecret] = useState(appSettings.mandiri_qris_webhook_secret || 'sec_cendra_qris_2026');
+  const [testWebhookLoading, setTestWebhookLoading] = useState(false);
+  const [webhookCopied, setWebhookCopied] = useState(false);
+
+  const [whatsappEnabled, setWhatsappEnabled] = useState(appSettings.whatsapp_enabled !== '0');
+  const [whatsappProvider, setWhatsappProvider] = useState(appSettings.whatsapp_provider || 'fonnte');
+  const [whatsappApiToken, setWhatsappApiToken] = useState(appSettings.whatsapp_api_token || '');
+  const [whatsappSenderNumber, setWhatsappSenderNumber] = useState(appSettings.whatsapp_sender_number || '');
+  const [whatsappTemplateBooking, setWhatsappTemplateBooking] = useState(
+    appSettings.whatsapp_template_booking ||
+      'Halo Kak {nama_pelanggan}! Booking Anda di Cendrawasih Barbershop telah diterima. Kode: {kode_booking}, Tanggal: {tanggal} {jam}, Layanan: {layanan}, Barber: {barber}, Cabang: {cabang}. Mohon hadir 5 menit sebelum jadwal. Terima kasih!'
+  );
+  const [whatsappTemplateTrx, setWhatsappTemplateTrx] = useState(
+    appSettings.whatsapp_template_trx ||
+      'Terima kasih Kak {nama_pelanggan}! Pembayaran sebesar Rp {total} untuk invoice {invoice} di Cendrawasih Barbershop ({cabang}) telah berhasil diterima via {metode_bayar}. Layanan oleh: {barber}. Sampai jumpa kembali!'
+  );
+  const [testWaPhone, setTestWaPhone] = useState('');
+  const [testWaLoading, setTestWaLoading] = useState(false);
 
   const showNotification = (msg: string, isError = false) => {
     if (isError) {
@@ -233,6 +256,16 @@ export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
         geofence_default_radius: geofenceRadius,
         face_match_min_percent: faceMatchMin,
         tolerance_late_minutes: toleranceMinutes,
+        mandiri_qris_enabled: mandiriQrisEnabled ? '1' : '0',
+        mandiri_qris_merchant_id: mandiriMerchantId,
+        mandiri_qris_client_id: mandiriClientId,
+        mandiri_qris_webhook_secret: mandiriWebhookSecret,
+        whatsapp_enabled: whatsappEnabled ? '1' : '0',
+        whatsapp_provider: whatsappProvider,
+        whatsapp_api_token: whatsappApiToken,
+        whatsapp_sender_number: whatsappSenderNumber,
+        whatsapp_template_booking: whatsappTemplateBooking,
+        whatsapp_template_trx: whatsappTemplateTrx,
       };
 
       const res = await fetch('/api/settings', {
@@ -282,6 +315,86 @@ export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
       }
     } catch {
       showNotification('Gagal mengubah PIN', true);
+    }
+  };
+
+  // HANDLER: Test Mandiri QRIS Webhook
+  const handleTestMandiriWebhook = async () => {
+    setTestWebhookLoading(true);
+    try {
+      const res = await fetch('/api/payments/mandiri/test-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'owner',
+        },
+        body: JSON.stringify({
+          amount: 85000,
+          customer_name: 'Simulasi Mandiri QRIS',
+          reference_id: `MND-${Date.now()}`,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Tes Webhook Mandiri Berhasil! Notifikasi pembayaran otomatis terverifikasi.');
+      } else {
+        showNotification(data.error || 'Gagal simulasi webhook Mandiri', true);
+      }
+    } catch {
+      showNotification('Gagal menghubungi endpoint webhook', true);
+    } finally {
+      setTestWebhookLoading(false);
+    }
+  };
+
+  // HANDLER: Test Kirim WhatsApp
+  const handleTestWhatsApp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testWaPhone || testWaPhone.length < 9) {
+      showNotification('Masukkan nomor WhatsApp tujuan yang valid (contoh: 081234567890)', true);
+      return;
+    }
+    setTestWaLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp/send-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'owner',
+        },
+        body: JSON.stringify({
+          phone: testWaPhone,
+          message: `👋 Halo! Ini adalah pesan uji coba integrasi WhatsApp Cendrawasih Barbershop Nabire pada ${new Date().toLocaleString('id-ID')}. Sistem berjalan normal & aman! ✅`,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(data.message || 'Pesan WhatsApp berhasil dikirim!');
+      } else {
+        showNotification(data.message || 'Gagal mengirim pesan WhatsApp', true);
+      }
+    } catch {
+      showNotification('Gagal menghubungi WhatsApp gateway', true);
+    } finally {
+      setTestWaLoading(false);
+    }
+  };
+
+  const getFullWebhookUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/api/webhooks/mandiri-qris`;
+    }
+    return '/api/webhooks/mandiri-qris';
+  };
+
+  const handleCopyWebhookUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(getFullWebhookUrl());
+      setWebhookCopied(true);
+      setTimeout(() => setWebhookCopied(false), 2000);
+      showNotification('URL Webhook berhasil disalin ke clipboard!');
+    } catch {
+      showNotification('Gagal menyalin URL', true);
     }
   };
 
@@ -337,6 +450,7 @@ export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
             {id: 'gaji_mutasi', label: '3. Mutasi & Gaji Pokok 2026', icon: Award},
             {id: 'versi_aplikasi', label: '4. Aplikasi & Versi', icon: Server},
             {id: 'keamanan', label: '5. Presensi & Keamanan', icon: KeyRound},
+            {id: 'integrasi', label: '6. Mandiri QRIS & WhatsApp API', icon: Globe},
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -852,6 +966,251 @@ export const OwnerSettingsPortal: React.FC<OwnerSettingsPortalProps> = ({
                 Ubah PIN Akses Owner
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 6. SUB-TAB: INTEGRASI MANDIRI QRIS WEBHOOK & WHATSAPP API GATEWAY */}
+      {/* ===================================================================== */}
+      {activeTab === 'integrasi' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 1: Mandiri QRIS Webhook Dinamis */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold">
+                  QR
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    Mandiri QRIS Webhook Dinamis
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Verifikasi pembayaran otomatis dari Bank Mandiri ke POS Kasir
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMandiriQrisEnabled(!mandiriQrisEnabled)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  mandiriQrisEnabled
+                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                }`}
+              >
+                {mandiriQrisEnabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                <span>{mandiriQrisEnabled ? 'Aktif' : 'Non-Aktif'}</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Mandiri Merchant ID / NMID
+                </label>
+                <input
+                  type="text"
+                  value={mandiriMerchantId}
+                  onChange={(e) => setMandiriMerchantId(e.target.value)}
+                  placeholder="Contoh: CW-MANDIRI-NABIRE-01"
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2 text-xs font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Client ID (Mandiri Open API / Partner Portal)
+                </label>
+                <input
+                  type="text"
+                  value={mandiriClientId}
+                  onChange={(e) => setMandiriClientId(e.target.value)}
+                  placeholder="Contoh: 12345678-mandiri-cendra"
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2 text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Webhook Secret Key (HMAC-SHA256 Signature)
+                </label>
+                <input
+                  type="password"
+                  value={mandiriWebhookSecret}
+                  onChange={(e) => setMandiriWebhookSecret(e.target.value)}
+                  placeholder="Secret key untuk memvalidasi callback webhook"
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2 text-xs font-mono"
+                />
+              </div>
+
+              {/* URL Callback / Webhook Endpoint */}
+              <div className="rounded-xl border border-purple-200 dark:border-purple-900/50 bg-purple-50 dark:bg-purple-950/30 p-3 space-y-1.5">
+                <p className="text-[11px] font-bold text-purple-900 dark:text-purple-300">
+                  URL Webhook Callback (Pasang di Portal Mandiri):
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getFullWebhookUrl()}
+                    className="flex-1 rounded-lg border border-purple-300 dark:border-purple-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyWebhookUrl}
+                    className="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-xs font-bold transition-all cursor-pointer shrink-0"
+                  >
+                    {webhookCopied ? 'Tersalin!' : 'Salin URL'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500">
+                  Method: <span className="font-mono font-bold text-emerald-600">POST</span> · Format Payload: JSON · Notifikasi otomatis masuk ke kasir via WebSocket.
+                </p>
+              </div>
+
+              {/* Tombol Uji Coba Webhook */}
+              <button
+                type="button"
+                onClick={handleTestMandiriWebhook}
+                disabled={testWebhookLoading}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white py-2.5 text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${testWebhookLoading ? 'animate-spin' : ''}`} />
+                <span>{testWebhookLoading ? 'Mengirim Simulasi Webhook...' : 'Kirim Simulasi Webhook Mandiri (Rp 85.000)'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card 2: WhatsApp API Gateway */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                  WA
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    WhatsApp Gateway Notifikasi
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Kirim struk digital kasir & konfirmasi booking online otomatis ke WhatsApp pelanggan
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWhatsappEnabled(!whatsappEnabled)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  whatsappEnabled
+                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700'
+                }`}
+              >
+                {whatsappEnabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                <span>{whatsappEnabled ? 'Aktif' : 'Non-Aktif'}</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Provider Gateway
+                  </label>
+                  <select
+                    value={whatsappProvider}
+                    onChange={(e) => setWhatsappProvider(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-bold"
+                  >
+                    <option value="fonnte">Fonnte (Rekomendasi Indonesia)</option>
+                    <option value="wablas">Wablas Official</option>
+                    <option value="meta">Meta Cloud API (Official)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Nomor Pengirim (Sender)
+                  </label>
+                  <input
+                    type="text"
+                    value={whatsappSenderNumber}
+                    onChange={(e) => setWhatsappSenderNumber(e.target.value)}
+                    placeholder="Contoh: 081234567890"
+                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  API Token / Secret Key
+                </label>
+                <input
+                  type="password"
+                  value={whatsappApiToken}
+                  onChange={(e) => setWhatsappApiToken(e.target.value)}
+                  placeholder="Masukkan token dari Fonnte / Wablas dashboard"
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3.5 py-2 text-xs font-mono"
+                />
+                <p className="text-[10px] text-zinc-400 mt-1">
+                  *Kosongkan untuk mengaktifkan mode simulasi (pesan dicatat di log server tanpa memotong saldo).
+                </p>
+              </div>
+
+              {/* Template Notifikasi Struk */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Template Pesan Struk Kasir
+                </label>
+                <textarea
+                  rows={2}
+                  value={whatsappTemplateTrx}
+                  onChange={(e) => setWhatsappTemplateTrx(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-mono"
+                />
+                <p className="text-[10px] text-zinc-400">Variabel: {'{nama_pelanggan}'}, {'{invoice}'}, {'{total}'}, {'{cabang}'}, {'{metode_bayar}'}, {'{barber}'}</p>
+              </div>
+
+              {/* Template Booking Online */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Template Konfirmasi Booking Online
+                </label>
+                <textarea
+                  rows={2}
+                  value={whatsappTemplateBooking}
+                  onChange={(e) => setWhatsappTemplateBooking(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-mono"
+                />
+                <p className="text-[10px] text-zinc-400">Variabel: {'{nama_pelanggan}'}, {'{kode_booking}'}, {'{tanggal}'}, {'{jam}'}, {'{layanan}'}, {'{barber}'}, {'{cabang}'}</p>
+              </div>
+
+              {/* Form Uji Coba WhatsApp */}
+              <form onSubmit={handleTestWhatsApp} className="rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 space-y-2">
+                <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                  Uji Coba Kirim Pesan WhatsApp:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="tel"
+                    placeholder="Nomor HP Tujuan (08...)"
+                    value={testWaPhone}
+                    onChange={(e) => setTestWaPhone(e.target.value)}
+                    className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-mono"
+                  />
+                  <button
+                    type="submit"
+                    disabled={testWaLoading}
+                    className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    {testWaLoading ? 'Mengirim...' : 'Kirim Tes'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
